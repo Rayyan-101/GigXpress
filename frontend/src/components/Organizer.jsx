@@ -57,7 +57,7 @@ const CreateJobModal = ({ onClose, onCreate }) => {
       date: form.date,
       workers: form.workers,
       budget: `₹${form.budget}`,
-      skills: ["Event Management"], // demo
+      skills: ["Event Management"], 
     });
 
     onClose();
