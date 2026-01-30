@@ -149,7 +149,7 @@ const CreateJobModal = ({ onClose, onCreate }) => {
     </div>
 );
 };
-// --- Main Dashboard Component ---
+
 const OrganizerDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateJobModal, setShowCreateJobModal] = useState(false);
