@@ -33,7 +33,6 @@ const DEMO_JOBS = [
   }
 ];
 
-// --- Sub-Component: Create Job Modal ---
 const CreateJobModal = ({ onClose, onCreate }) => {
     const [form, setForm] = useState({
     title: "",
