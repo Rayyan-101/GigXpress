@@ -183,6 +183,7 @@ const OrganizerDashboard = () => {
 };
 
 
+  // Mock Data
   const stats = [
     { label: 'Active Jobs', value: '12', icon: Briefcase, color: 'from-blue-500 to-blue-600', change: '+3' },
     { label: 'Total Applications', value: '48', icon: Users, color: 'from-purple-500 to-purple-600', change: '+12' },
