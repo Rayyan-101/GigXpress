@@ -146,7 +146,7 @@ const CompleteRegistrationFlow = () => {
     return (
       <div className="min-h-screen bg-gray-50 font-sans pb-12">
         <header className="p-6 bg-white border-b mb-8">
-          <div className="max-w-4xl mx-auto flex items-center gap-4">
+          <div className="max-w-4xl mx-2 flex items-center gap-4">
             <button onClick={() => setStep('role-selection')} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <ArrowLeft size={20} />
             </button>
