@@ -152,7 +152,7 @@ const [isOpen, setIsOpen] = useState(false);
               <button className="text-indigo-600 hover:text-indigo-700 font-semibold transition">Login</button>
               <div className="relative">
                 <button
-                  onClick={() => navigate("/role")}
+                  onClick={() => navigate("/signup")}
                   className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition shadow-lg"
                 >
                   Get Started

@@ -4,6 +4,7 @@ import React from "react";
 import OrganizerDashboard from "./components/Organizer";
 import WorkerDashboard from "./components/Volunteer";
 import JoinPage from "./components/JoinPage";
+import CompleteRegistrationFlow from "./components/CompleteRegistrationFlow";
 
 function App() {
   return (
@@ -12,7 +13,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/organizer" element={<OrganizerDashboard />} />
         <Route path="/volunteer" element={<WorkerDashboard />} />
-        <Route path="/role" element={<JoinPage />} />
+        <Route path="/signup" element={<CompleteRegistrationFlow />} />
+
       </Routes>
     </BrowserRouter>
   );
