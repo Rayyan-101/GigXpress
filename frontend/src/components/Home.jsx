@@ -152,13 +152,13 @@ const [isOpen, setIsOpen] = useState(false);
               <button className="text-indigo-600 hover:text-indigo-700 font-semibold transition">Login</button>
               <div className="relative">
                 <button
-                  onClick={() => setIsOpen(!isOpen)}
+                  onClick={() => navigate("/role")}
                   className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition shadow-lg"
                 >
                   Get Started
                 </button>
 
-                {isOpen && (
+                {/* {isOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden z-10">
                     <button
                         onClick={() => navigate("/volunteer")}
@@ -173,7 +173,7 @@ const [isOpen, setIsOpen] = useState(false);
                       Organizer
                     </button>
                   </div>
-                )}
+                )} */}
               </div>
             </div>
 
