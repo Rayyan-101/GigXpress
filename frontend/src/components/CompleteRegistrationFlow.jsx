@@ -79,12 +79,43 @@ const CompleteRegistrationFlow = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // Here you would make API call to register user
-    console.log('Submitting:', { role: selectedRole, ...formData });
-    setStep('verification');
-  };
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  // Validate passwords match
+  if (formData.password !== formData.confirmPassword) {
+    alert('Passwords do not match!');
+    return;
+  }
+
+  try {
+    const response = await fetch(`http://localhost:5000/api/auth/register/${selectedRole}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      // Store token in localStorage
+      localStorage.setItem('token', data.data.token);
+      localStorage.setItem('userRole', data.data.user.role);
+      localStorage.setItem('userId', data.data.user.id);
+
+      // Show success screen
+      setStep('verification');
+    } else {
+      // Show error message
+      alert(data.message || 'Registration failed');
+    }
+  } catch (error) {
+    console.error('Registration error:', error);
+    alert('An error occurred during registration. Please try again.');
+  }
+};
 
   // Role Selection Screen
   if (step === 'role-selection') {
