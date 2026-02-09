@@ -122,13 +122,7 @@ const Home = () => {
 
 const [isOpen, setIsOpen] = useState(false);
 
-//   const handleNavigation = (role) => {
-//     if (role === "admin") {
-//       window.location.href = "/admin";
-//     } else if (role === "organizer") {
-//       window.location.href = "/organizer";
-//     }
-//   };  
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
