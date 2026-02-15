@@ -5,6 +5,7 @@ import {
   Building, Calendar, Shield, AlertCircle, Loader
 } from 'lucide-react';
 
+
 const CompleteRegistrationFlow = () => {
   const [step, setStep] = useState('role-selection');
   const [selectedRole, setSelectedRole] = useState(null);
@@ -143,7 +144,7 @@ const CompleteRegistrationFlow = () => {
 
     try {
       // API endpoint - change this to your actual backend URL
-      const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const API_URL = 'http://localhost:5000';
       
       const response = await fetch(`${API_URL}/api/auth/register/${selectedRole}`, {
         method: 'POST',
