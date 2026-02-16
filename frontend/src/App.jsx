@@ -14,7 +14,6 @@ function App() {
         <Route path="/organizer" element={<OrganizerDashboard />} />
         <Route path="/volunteer" element={<WorkerDashboard />} />
         <Route path="/signup" element={<CompleteRegistrationFlow />} />
-
       </Routes>
     </BrowserRouter>
   );
