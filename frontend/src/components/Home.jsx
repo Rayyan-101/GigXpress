@@ -151,8 +151,6 @@ const [isOpen, setIsOpen] = useState(false);
                 >
                   Get Started
                 </button>
-
-
               </div>
             </div>
 
