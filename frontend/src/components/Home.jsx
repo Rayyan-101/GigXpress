@@ -152,6 +152,22 @@ const [isOpen, setIsOpen] = useState(false);
                   Get Started
                 </button>
 
+                {/* {isOpen && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl overflow-hidden z-10">
+                    <button
+                        onClick={() => navigate("/volunteer")}
+                        className="w-full px-4 py-3 text-left text-gray-700 hover:bg-indigo-50 transition"
+                        >
+                      Volunteer
+                    </button>
+                    <button
+                      onClick={() => navigate("/organizer")}
+                      className="w-full px-4 py-3 text-left text-gray-700 hover:bg-indigo-50 transition"
+                    >
+                      Organizer
+                    </button>
+                  </div>
+                )} */}
               </div>
             </div>
 
