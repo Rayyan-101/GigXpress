@@ -6,6 +6,7 @@ import WorkerDashboard from "./components/Volunteer";
 import JoinPage from "./components/JoinPage";
 import CompleteRegistrationFlow from "./components/CompleteRegistrationFlow";
 import AdminDashboard from "./components/AdminDashboard";
+import Login from "./components/Login";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route path="/volunteer" element={<WorkerDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/signup" element={<CompleteRegistrationFlow />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </BrowserRouter>
   );

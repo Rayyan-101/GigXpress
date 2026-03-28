@@ -10,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 const Home = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(true);
   const navigate = useNavigate();
 
   const testimonials = [
@@ -42,6 +45,68 @@ const Home = () => {
     }, 5000);
     return () => clearInterval(interval);
   }, []);
+
+
+  useEffect(() => {
+  const checkAuth = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/me', {
+        credentials: 'include'
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsLoggedIn(true);
+        setUser(data.data.user);
+      } else {
+        setIsLoggedIn(false);
+        setUser(null); // 🔥 IMPORTANT
+      }
+    } catch (err) {
+      console.error('Auth check failed', err);
+      setIsLoggedIn(false);
+    } finally {
+      setLoadingAuth(false); 
+    }
+  };
+
+  checkAuth();
+}, []);
+
+
+  const handleLogout = async () => {
+      try {
+    await fetch('http://localhost:5000/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    // ✅ clear everything
+    setIsLoggedIn(false);
+    setUser(null);
+
+    localStorage.clear(); // 🔥 IMPORTANT
+
+    navigate('/');
+  } catch (err) {
+    console.error('Logout failed', err);
+  }
+    };
+
+    const handleGetStarted = () => {
+      if (!isLoggedIn) {
+        navigate('/login');
+      } else {
+        if (user?.role === 'organizer') {
+          navigate('/organizer');
+        } else if (user?.role === 'worker') {
+          navigate('/volunteer');
+        } else {
+          navigate('/'); // fallback
+        }
+      }
+    };
 
   const features = [
     {
@@ -122,7 +187,7 @@ const Home = () => {
 
 const [isOpen, setIsOpen] = useState(false);
 
-
+if (loadingAuth) return null;
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -143,16 +208,48 @@ const [isOpen, setIsOpen] = useState(false);
               <a href="#how-it-works" className="text-gray-700 hover:text-indigo-600 font-medium transition">How It Works</a>
               <a href="#categories" className="text-gray-700 hover:text-indigo-600 font-medium transition">Categories</a>
               <a href="#testimonials" className="text-gray-700 hover:text-indigo-600 font-medium transition">Reviews</a>
-              <button className="text-indigo-600 hover:text-indigo-700 font-semibold transition">Login</button>
-              <div className="relative">
+              {!isLoggedIn ? (
+                <>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="text-indigo-600 hover:text-indigo-700 font-semibold"
+                  >
+                    Login
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/signup')}
+                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg"
+                  >
+                    Signup
+                  </button>
+                </>
+              ) : (
+                <>
+                  <span className="text-gray-700 font-medium">
+                    Hi, {user?.fullName}
+                  </span>
+
+                  <button
+                    onClick={handleLogout}
+                    className="px-6 py-2.5 bg-red-500 text-white rounded-lg"
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
+
+              {/* <div className="relative">
                 <button
-                  onClick={() => navigate("/signup")}
+                  onClick={handleGetStarted}
                   className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:opacity-90 transition shadow-lg"
                 >
                   Get Started
                 </button>
-              </div>
+              </div> */}
             </div>
+
+            
 
             <button className="md:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
@@ -192,7 +289,7 @@ const [isOpen, setIsOpen] = useState(false);
                 Connect organizers with skilled volunteers. Find gigs, work flexibly, and earn securely with our escrow-protected platform.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="px-8 py-4 bg-white text-indigo-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition shadow-xl flex items-center justify-center gap-2">
+                <button className="px-8 py-4 bg-white text-indigo-600 rounded-lg font-semibold text-lg hover:bg-gray-100 transition shadow-xl flex items-center justify-center gap-2" onClick={handleGetStarted}>
                   <TrendingUp size={20} />
                   Start Earning Today
                 </button>
