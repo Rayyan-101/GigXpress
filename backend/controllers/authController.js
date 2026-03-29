@@ -99,22 +99,24 @@ exports.register = async (req, res) => {
     // await sendVerificationEmail(user.email, user._id);
 
     // Return success response
-    res.status(201).json({
-      success: true,
-      message: 'Registration successful',
-      data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          kycStatus: user.kycStatus
+    res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.status(201).json({
+        success: true,
+        data: {
+          user: {
+            id: user._id,
+            fullName: user.fullName,
+            email: user.email,
+            role: user.role
+          }
         }
-      }
-    });
+      });
 
   } catch (error) {
     console.error('Registration error:', error);
@@ -176,23 +178,17 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user._id, user.role);
 
-    res.status(200).json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          isEmailVerified: user.isEmailVerified,
-          kycStatus: user.kycStatus,
-          profilePicture: user.profilePicture
-        }
-      }
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
+
+res.status(200).json({
+  success: true,
+  data: { user }
+});
 
   } catch (error) {
     console.error('Login error:', error);
@@ -240,4 +236,14 @@ exports.getMe = async (req, res) => {
       message: 'Server error'
     });
   }
+};
+
+exports.logout = (req, res) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    sameSite: 'Strict',
+    secure: false // 🔥 MUST match how cookie was set
+  });
+
+  res.json({ success: true });
 };

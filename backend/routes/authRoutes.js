@@ -12,9 +12,6 @@ const registerValidation = [
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters'),
-  body('confirmPassword')
-    .custom((value, { req }) => value === req.body.password)
-    .withMessage('Passwords do not match')
 ];
 
 const loginValidation = [
@@ -26,5 +23,6 @@ const loginValidation = [
 router.post('/register/:role', registerValidation, authController.register);
 router.post('/login', loginValidation, authController.login);
 router.get('/me', protect, authController.getMe);
+router.post('/logout', authController.logout);
 
 module.exports = router;
