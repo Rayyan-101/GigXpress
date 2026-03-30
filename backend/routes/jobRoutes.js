@@ -22,6 +22,44 @@ router.post('/', protect, async (req, res) => {
 });
 
 
+router.get('/', async (req, res) => {
+  try {
+    const { search, category } = req.query;
+
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    let query = {};
+
+    if (search) {
+      query.title = { $regex: search, $options: 'i' };
+    }
+
+    if (category) {
+      query.category = category;
+    }
+
+    // Optional: only active jobs
+    // query.status = 'open';
+
+    const jobs = await Job.find(query)
+      .populate('organizerId', 'fullName')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.json({
+      success: true,
+      data: { jobs }
+    });
+
+  } catch (error) {
+    console.error("GET JOBS ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch jobs'
+    });
+  }
+});
+
 // ✅ GET MY JOBS
 router.get('/my', protect, async (req, res) => {
   try {

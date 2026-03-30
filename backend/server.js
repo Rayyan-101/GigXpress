@@ -30,6 +30,8 @@ app.use('/api/jobs', require('./routes/jobRoutes'));
 app.use('/api/applications', require('./routes/applicationRoutes'));
 app.use('/api/organizers', require('./routes/organizerRoutes'));
 
+app.use('/api/workers', require('./routes/WorkerRoute'));
+
 // Health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
