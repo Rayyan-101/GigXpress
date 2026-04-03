@@ -6,8 +6,8 @@ const Application = require('../models/Application');
 exports.getProfile = async (req, res) => {
   try {
     const [user, profile] = await Promise.all([
-      User.findById(req.user.userId),
-      WorkerProfile.findOne({ userId: req.user.userId })
+      User.findById(req.user._id),
+      WorkerProfile.findOne({ userId: req.user._id })
     ]);
     if (!profile) return res.status(404).json({ success: false, message: 'Profile not found.' });
 

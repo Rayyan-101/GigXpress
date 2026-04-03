@@ -204,8 +204,7 @@ res.status(200).json({
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.userId);
-
+    const user = await User.findById(req.user._id);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -223,10 +222,8 @@ exports.getMe = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: {
         user,
-        profile
-      }
+        profile,
     });
 
   } catch (error) {

@@ -13,6 +13,12 @@ const applicationSchema = new mongoose.Schema({
     required: true
   },
 
+  organizerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  
   status: {
     type: String,
     enum: ['Pending', 'Accepted', 'Rejected', 'Withdrawn'],
