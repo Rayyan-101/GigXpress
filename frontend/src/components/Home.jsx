@@ -58,7 +58,7 @@ const Home = () => {
 
       if (res.ok && data.success) {
         setIsLoggedIn(true);
-        setUser(data.data.user);
+        setUser(data.user);
       } else {
         setIsLoggedIn(false);
         setUser(null); // 🔥 IMPORTANT
@@ -102,6 +102,8 @@ const Home = () => {
           navigate('/organizer');
         } else if (user?.role === 'worker') {
           navigate('/volunteer');
+        }else if (user?.role === 'admin') {
+          navigate('/admin');
         } else {
           navigate('/'); // fallback
         }

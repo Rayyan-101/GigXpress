@@ -878,18 +878,17 @@ const CompleteRegistrationFlow = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => navigate(selectedRole === 'organizer' ? '/organizer' : '/volunteer')}
-            className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:opacity-90 transition mb-3"
-          >
-            Go to Dashboard
-          </button>
-
-          <button
-            onClick={() => navigate('/')}
-            className="w-full px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
-          >
-            Back to Home
+          <button onClick={() => navigate('/kyc')}
+              className="w-full px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:opacity-90 transition mb-3">
+              Complete KYC Verification
+            </button>
+            <button onClick={() => navigate(selectedRole === 'organizer' ? '/organizer' : '/volunteer')}
+              className="w-full px-8 py-4 border-2 border-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition mb-3">
+              Go to Dashboard
+            </button>
+            <button onClick={() => navigate('/')}
+              className="w-full px-8 py-4 border-2 border-gray-300 text-gray-500 rounded-lg font-semibold hover:bg-gray-50 transition">
+              Back to Home
           </button>
 
           <p className="text-sm text-gray-500 mt-6">

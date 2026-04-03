@@ -41,6 +41,7 @@ const Login = () => {
       if (data.success) {
         // optional: store minimal user info
         localStorage.setItem('userRole', data.data.user.role);
+        localStorage.setItem("userName", data.data.user.fullName);
 
         // redirect based on role
         if (data.data.user.role === 'organizer') {
