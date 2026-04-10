@@ -26,7 +26,7 @@ const allowedOrigins = [
   "https://gig-xpress-wu8e.vercel.app"
 ];
 // Middleware
-
+console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
