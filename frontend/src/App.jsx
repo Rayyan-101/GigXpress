@@ -7,7 +7,7 @@ import WorkerDashboard from "./components/Volunteer";
 import CompleteRegistrationFlow from "./components/CompleteRegistrationFlow";
 import AdminDashboard from "./components/AdminDashboard";
 import Login from "./components/Login";
-import KYCPage from "./components/Kycpage";
+import KYCPage from "./components/KYCPage";
 import ProfilePage from "./components/ProfilePage";
 
 // 🔥 UPDATED ProtectedRoute (cookie-based)
