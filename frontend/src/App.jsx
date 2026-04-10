@@ -14,11 +14,11 @@ import ProfilePage from "./components/ProfilePage";
 const ProtectedRoute = ({ element, allowedRoles }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const BASE_URL = import.meta.env.VITE_API_URL;
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/auth/me", {
+        const res = await fetch(`${BASE_URL}/api/auth/me`, {
           credentials: "include", // 🔥 send cookies
         });
 
