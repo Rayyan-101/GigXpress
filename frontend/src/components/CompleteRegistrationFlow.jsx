@@ -189,7 +189,7 @@ const CompleteRegistrationFlow = () => {
       if (data.success) {
         // Save auth info to localStorage
         localStorage.setItem('userRole',  data.data.user.role);
-        localStorage.setItem('userId',    String(data.data.user.id));
+        localStorage.setItem('userId',    String(data.data.user._id));
         localStorage.setItem('userEmail', data.data.user.email);
         localStorage.setItem('userName',  data.data.user.fullName);
 

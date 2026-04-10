@@ -40,6 +40,7 @@ const Login = () => {
 
       if (data.success) {
         // optional: store minimal user info
+        localStorage.setItem("userId",  data.data.user._id);
         localStorage.setItem('userRole', data.data.user.role);
         localStorage.setItem("userName", data.data.user.fullName);
 

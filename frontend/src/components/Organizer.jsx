@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Briefcase, Plus, Users, Clock, DollarSign, CheckCircle,
+  Briefcase, Plus, Users, Clock, MessageSquare, DollarSign, CheckCircle,
   Star, MapPin, Calendar, Edit, Trash2, Eye, UserCheck,
   TrendingUp, AlertCircle, Download, BarChart3, Bell,
   Menu, X, Loader, RefreshCw, CheckSquare, XSquare,
   LogOut, Shield, XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import ChatWindow from './ChatWindow';
 
-// ─── API ──────────────────────────────────────────────────────────────────────
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// ─── API ──────────────────────────────────────────────────────────────────────
 const apiFetch = async (path, options = {}) => {
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    credentials: 'include', // 🔥 MUST ADD
+    credentials: 'include', // 🔥 THIS FIXES EVERYTHING
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -23,14 +24,176 @@ const apiFetch = async (path, options = {}) => {
   return res.json();
 };
 
-
-
-// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const SKILL_OPTIONS = [
   'Event Management','Hospitality','Marketing','Technical Support',
   'AV Setup','Crowd Management','Registration Desk','Photography','Decoration',
 ];
 const CATEGORIES = ['Music','Sports','Corporate','Wedding','Education','Food','Startup','NGO','Community','Tech','Other'];
+
+// ─── STAR RATING INPUT (interactive) ─────────────────────────────────────────
+const StarRatingInput = ({ value, onChange, size = 32 }) => (
+  <div className="flex gap-2">
+    {[1, 2, 3, 4, 5].map(n => (
+      <button
+        key={n}
+        type="button"
+        onClick={() => onChange(n)}
+        className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"
+      >
+        <Star
+          size={size}
+          className={n <= value ? 'text-amber-400 fill-amber-400' : 'text-gray-300 hover:text-amber-300'}
+        />
+      </button>
+    ))}
+  </div>
+);
+
+// ─── STAR DISPLAY (read-only) ─────────────────────────────────────────────────
+const StarDisplay = ({ score, size = 14 }) => (
+  <div className="flex items-center gap-1.5">
+    <div className="flex">
+      {[1, 2, 3, 4, 5].map(n => (
+        <Star key={n} size={size} className={n <= Math.round(score) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
+      ))}
+    </div>
+    <span className="text-sm font-semibold text-gray-700">{Number(score).toFixed(1)}</span>
+  </div>
+);
+
+// ─── RATE WORKER MODAL ────────────────────────────────────────────────────────
+// Opens when organiser clicks "Rate Worker" on a completed gig.
+// Calls PATCH /api/applications/:id/complete → sets status to Completed + saves workerRating.
+const RateWorkerModal = ({ application, onClose, onSuccess }) => {
+  const [score,   setScore]   = useState(5);  // default 5 so stars are visible but user must confirm
+  const [review,  setReview]  = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+
+  const worker = application.workerId;
+
+  const handleSubmit = async () => {
+    if (!score || score < 1) { setError('Please select a star rating.'); return; }
+    setLoading(true);
+    setError('');
+    const data = await apiFetch(`/api/applications/${application._id}/complete`, {
+      method: 'PATCH',
+      body: JSON.stringify({ score, review }),
+    });
+    setLoading(false);
+    if (data.success) {
+      onSuccess();
+      onClose();
+    } else {
+      setError(data.message || 'Failed to submit rating. Please try again.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+        {/* Header */}
+        <div className="p-6 border-b flex justify-between items-start">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Rate & Complete Gig</h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              How did {worker?.fullName || 'this worker'} perform?
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-700 rounded-full transition-colors">
+            <X size={22} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-6 space-y-5">
+          {/* Worker card */}
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+            <img
+              src={worker?.profilePicture || `https://i.pravatar.cc/150?u=${worker?._id}`}
+              alt={worker?.fullName}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <p className="font-bold text-gray-900">{worker?.fullName}</p>
+              <p className="text-sm text-gray-500">{worker?.email}</p>
+            </div>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2 items-start">
+              <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          )}
+
+          {/* Star rating */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Rating <span className="text-red-500">*</span>
+            </label>
+            <StarRatingInput value={score} onChange={setScore} />
+            <p className="text-sm text-amber-600 font-medium mt-2">
+              {score === 1 && '⭐ Poor'}
+              {score === 2 && '⭐⭐ Below Average'}
+              {score === 3 && '⭐⭐⭐ Average'}
+              {score === 4 && '⭐⭐⭐⭐ Good'}
+              {score === 5 && '⭐⭐⭐⭐⭐ Excellent'}
+              <span className="text-gray-400 font-normal ml-1">({score}/5)</span>
+            </p>
+          </div>
+
+          {/* Review */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Review <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <textarea
+              value={review}
+              onChange={e => setReview(e.target.value)}
+              rows={3}
+              maxLength={300}
+              disabled={loading}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none"
+              placeholder="Share feedback about this worker's performance, punctuality, attitude..."
+            />
+            <p className="text-xs text-gray-400 mt-1 text-right">{review.length}/300</p>
+          </div>
+
+          {/* Warning */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+            <p className="font-semibold">⚠️ This action is permanent</p>
+            <p className="mt-0.5 text-amber-700">
+              Marking as complete will finalise this gig and cannot be undone.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="px-5 py-2.5 border border-gray-300 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg font-semibold text-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-60"
+          >
+            {loading
+              ? <><Loader size={16} className="animate-spin" /> Submitting...</>
+              : <><CheckCircle size={16} /> Complete & Rate</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ─── KYC REQUIRED MODAL ───────────────────────────────────────────────────────
 const KycRequiredModal = ({ kycStatus, onClose }) => {
@@ -48,31 +211,29 @@ const KycRequiredModal = ({ kycStatus, onClose }) => {
           {isInProgress && <Clock   className="text-amber-600"  size={42} />}
           {!isRejected && !isInProgress && <Shield className="text-indigo-600" size={42} />}
         </div>
-
         <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {isRejected   ? 'KYC Rejected'            :
-           isInProgress ? 'KYC Under Review'        :
-                          'KYC Required to Post Jobs'}
+          {isRejected ? 'KYC Rejected' : isInProgress ? 'KYC Under Review' : 'KYC Required to Post Jobs'}
         </h3>
         <p className="text-gray-500 text-sm mb-6">
           {isRejected
-            ? 'Your KYC was rejected. Please re-submit with clearer, valid documents.'
+            ? 'Re-submit with clearer documents.'
             : isInProgress
-            ? 'Your documents are being reviewed (24–48 hrs). Job posting unlocks once verified.'
-            : 'Complete KYC verification to start posting jobs and hiring volunteers.'}
+            ? 'Being reviewed (24–48 hrs). Job posting unlocks once verified.'
+            : 'Complete KYC to start posting jobs.'}
         </p>
-
         <div className="flex flex-col gap-3">
           {!isInProgress && (
             <button
               onClick={() => { onClose(); navigate('/kyc'); }}
-              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2">
+              className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+            >
               <Shield size={18} /> {isRejected ? 'Re-submit KYC' : 'Complete KYC Now'}
             </button>
           )}
           <button
             onClick={onClose}
-            className="w-full py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-all">
+            className="w-full py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-50 transition-all"
+          >
             {isInProgress ? 'Back to Dashboard' : 'Maybe Later'}
           </button>
         </div>
@@ -84,22 +245,20 @@ const KycRequiredModal = ({ kycStatus, onClose }) => {
 // ─── KYC BANNER ───────────────────────────────────────────────────────────────
 const KycBanner = ({ kycStatus, onNavigate }) => {
   if (kycStatus === 'verified') return null;
-
   const cfgs = {
-    pending:     { bg: 'bg-amber-50 border-amber-200', Icon: AlertCircle, iconCls: 'text-amber-600', text: 'Complete KYC verification to post jobs and hire workers.',     btn: 'Complete KYC',  btnCls: 'bg-amber-600 hover:bg-amber-700' },
-    in_progress: { bg: 'bg-blue-50 border-blue-200',   Icon: Clock,       iconCls: 'text-blue-600',  text: 'KYC documents are under review. Job posting unlocks once approved.', btn: null,          btnCls: '' },
-    rejected:    { bg: 'bg-red-50 border-red-200',     Icon: XCircle,     iconCls: 'text-red-600',   text: 'KYC rejected. Re-submit your documents to start posting jobs.',  btn: 'Re-submit KYC', btnCls: 'bg-red-600 hover:bg-red-700' },
+    pending:     { bg: 'bg-amber-50 border-amber-200', Icon: AlertCircle, ic: 'text-amber-600', text: 'Complete KYC to post jobs.',                    btn: 'Complete KYC',  bc: 'bg-amber-600 hover:bg-amber-700' },
+    in_progress: { bg: 'bg-blue-50 border-blue-200',   Icon: Clock,       ic: 'text-blue-600',  text: 'KYC under review. Unlocks once approved.',      btn: null,            bc: '' },
+    rejected:    { bg: 'bg-red-50 border-red-200',     Icon: XCircle,     ic: 'text-red-600',   text: 'KYC rejected. Re-submit to post jobs.',         btn: 'Re-submit KYC', bc: 'bg-red-600 hover:bg-red-700' },
   };
   const cfg = cfgs[kycStatus];
   if (!cfg) return null;
   const { Icon } = cfg;
-
   return (
     <div className={`mb-6 border rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 ${cfg.bg}`}>
-      <Icon className={`flex-shrink-0 ${cfg.iconCls}`} size={20} />
+      <Icon className={`flex-shrink-0 ${cfg.ic}`} size={20} />
       <p className="text-sm text-gray-700 flex-1 font-medium">{cfg.text}</p>
       {cfg.btn && (
-        <button onClick={onNavigate} className={`flex-shrink-0 px-4 py-2 ${cfg.btnCls} text-white rounded-lg text-sm font-bold transition-all`}>
+        <button onClick={onNavigate} className={`flex-shrink-0 px-4 py-2 ${cfg.bc} text-white rounded-lg text-sm font-bold transition-all`}>
           {cfg.btn}
         </button>
       )}
@@ -107,7 +266,7 @@ const KycBanner = ({ kycStatus, onNavigate }) => {
   );
 };
 
-// ─── CREATE / EDIT JOB MODAL ──────────────────────────────────────────────────
+// ─── JOB MODAL ────────────────────────────────────────────────────────────────
 const JobModal = ({ onClose, onCreate, editJob = null, kycStatus }) => {
   const navigate = useNavigate();
   const isEdit   = !!editJob;
@@ -127,39 +286,14 @@ const JobModal = ({ onClose, onCreate, editJob = null, kycStatus }) => {
     requiredSkills: editJob?.requiredSkills || [],
     urgent:         editJob?.urgent         || false,
   });
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState('');
+  const [showKyc,  setShowKyc]  = useState(false);
 
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState('');
-  const [showKycModal, setShowKycModal] = useState(false);
-  const [user, setUser] = useState(null);
-const [loadingUser, setLoadingUser] = useState(true);
-
-useEffect(() => {
-  const fetchUser = async () => {
-    try {
-      const data = await apiFetch('/api/auth/me');
-
-      if (data.success) {
-        setUser(data.user);
-      } else {
-        navigate('/login');
-      }
-    } catch (err) {
-      console.error(err);
-      navigate('/login');
-    } finally {
-      setLoadingUser(false);
-    }
-  };
-
-  fetchUser();
-}, []);
-
-  const handleChange = (e) => {
+  const hc = (e) => {
     const { name, value, type, checked } = e.target;
     setForm(p => ({ ...p, [name]: type === 'checkbox' ? checked : value }));
   };
-
   const toggleSkill = (s) =>
     setForm(p => ({
       ...p,
@@ -169,43 +303,27 @@ useEffect(() => {
     }));
 
   const handleSubmit = async () => {
-    // Client-side KYC gate
-    const res = await apiFetch('/api/kyc/my');
-    console.log("KYC RESPONSE:", res);
-if (!res.success || res.data.kycStatus !== 'verified') {
-  setShowKycModal(true);
-  return;
-}
-
+    if (kycStatus !== 'verified') { setShowKyc(true); return; }
     if (!form.title || !form.location || !form.date || !form.time || !form.slotsTotal || !form.pay) {
-      setError('Please fill all required fields (Title, Location, Date, Time, Workers, Pay)');
-      return;
+      setError('Please fill all required fields.'); return;
     }
-
-    setLoading(true);
-    setError('');
-
+    setLoading(true); setError('');
     const payload = {
-      title: form.title.trim(), location: form.location.trim(), date: form.date, time: form.time,
-      duration: form.duration, slotsTotal: Number(form.slotsTotal),
-      pay: { amount: Number(form.pay), type: form.payType },
-      category: form.category, description: form.description.trim(),
-      requirements: form.requirements.trim(), requiredSkills: form.requiredSkills, urgent: form.urgent,
+      title: form.title.trim(), location: form.location.trim(), date: form.date,
+      time: form.time, duration: form.duration, slotsTotal: Number(form.slotsTotal),
+      pay: { amount: Number(form.pay), type: form.payType }, category: form.category,
+      description: form.description.trim(), requirements: form.requirements.trim(),
+      requiredSkills: form.requiredSkills, urgent: form.urgent,
     };
-
     try {
       const data = isEdit
         ? await apiFetch(`/api/jobs/${editJob._id}`, { method: 'PUT', body: JSON.stringify(payload) })
         : await apiFetch('/api/jobs', { method: 'POST', body: JSON.stringify(payload) });
-
       if (data.success) { onCreate(data.data.job); onClose(); }
-      else if (data.kycRequired) { setShowKycModal(true); }
-      else setError(data.message || 'Failed to save job. Please try again.');
-    } catch {
-      setError('Unable to connect to server.');
-    } finally {
-      setLoading(false);
-    }
+      else if (data.kycRequired) setShowKyc(true);
+      else setError(data.message || 'Failed to save job.');
+    } catch { setError('Unable to connect to server.'); }
+    finally { setLoading(false); }
   };
 
   return (
@@ -218,7 +336,6 @@ if (!res.success || res.data.kycStatus !== 'verified') {
               <X size={24} />
             </button>
           </div>
-
           <div className="p-6 space-y-5">
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2 items-start">
@@ -226,58 +343,51 @@ if (!res.success || res.data.kycStatus !== 'verified') {
                 <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
-
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Job Title *</label>
-              <input type="text" name="title" value={form.title} onChange={handleChange} disabled={loading}
+              <input type="text" name="title" value={form.title} onChange={hc} disabled={loading}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
                 placeholder="e.g., Wedding Event Staff Required" />
             </div>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">City / Location *</label>
-                <input type="text" name="location" value={form.location} onChange={handleChange} disabled={loading}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="Pune, Koregaon Park" />
+                <label className="block text-sm font-semibold text-gray-700 mb-2">City *</label>
+                <input type="text" name="location" value={form.location} onChange={hc} disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Pune" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Event Date *</label>
-                <input type="date" name="date" value={form.date} onChange={handleChange} disabled={loading}
+                <input type="date" name="date" value={form.date} onChange={hc} disabled={loading}
                   min={new Date().toISOString().split('T')[0]}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
             </div>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Start Time *</label>
-                <input type="time" name="time" value={form.time} onChange={handleChange} disabled={loading}
+                <input type="time" name="time" value={form.time} onChange={hc} disabled={loading}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Duration</label>
-                <select name="duration" value={form.duration} onChange={handleChange} disabled={loading}
+                <select name="duration" value={form.duration} onChange={hc} disabled={loading}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                   {['Full Day','Half Day','2 Hours','4 Hours','6 Hours','8 Hours'].map(d => <option key={d}>{d}</option>)}
                 </select>
               </div>
             </div>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Workers Needed *</label>
-                <input type="number" name="slotsTotal" value={form.slotsTotal} onChange={handleChange} disabled={loading} min="1"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  placeholder="5" />
+                <input type="number" name="slotsTotal" value={form.slotsTotal} onChange={hc} disabled={loading} min="1"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="5" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Pay per Worker (₹) *</label>
                 <div className="flex gap-2">
-                  <input type="number" name="pay" value={form.pay} onChange={handleChange} disabled={loading} min="0"
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                    placeholder="1500" />
-                  <select name="payType" value={form.payType} onChange={handleChange} disabled={loading}
+                  <input type="number" name="pay" value={form.pay} onChange={hc} disabled={loading} min="0"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="1500" />
+                  <select name="payType" value={form.payType} onChange={hc} disabled={loading}
                     className="px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm">
                     <option value="per_day">/day</option>
                     <option value="per_hour">/hr</option>
@@ -286,18 +396,17 @@ if (!res.success || res.data.kycStatus !== 'verified') {
                 </div>
               </div>
             </div>
-
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
-                <select name="category" value={form.category} onChange={handleChange} disabled={loading}
+                <select name="category" value={form.category} onChange={hc} disabled={loading}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                   {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                 </select>
               </div>
               <div className="flex items-end">
                 <label className="flex items-center gap-3 cursor-pointer p-4 border border-gray-200 rounded-lg w-full hover:bg-gray-50">
-                  <input type="checkbox" name="urgent" checked={form.urgent} onChange={handleChange} disabled={loading} className="w-5 h-5 accent-indigo-600" />
+                  <input type="checkbox" name="urgent" checked={form.urgent} onChange={hc} disabled={loading} className="w-5 h-5 accent-indigo-600" />
                   <div>
                     <p className="font-semibold text-gray-900 text-sm">Mark as Urgent</p>
                     <p className="text-xs text-gray-500">Shown with priority badge</p>
@@ -305,7 +414,6 @@ if (!res.success || res.data.kycStatus !== 'verified') {
                 </label>
               </div>
             </div>
-
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-3">Required Skills</label>
               <div className="flex flex-wrap gap-2">
@@ -313,44 +421,34 @@ if (!res.success || res.data.kycStatus !== 'verified') {
                   <button key={s} type="button" onClick={() => toggleSkill(s)} disabled={loading}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       form.requiredSkills.includes(s) ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}>
-                    {s}
-                  </button>
+                    }`}>{s}</button>
                 ))}
               </div>
-              {form.requiredSkills.length > 0 && (
-                <p className="text-xs text-indigo-600 mt-2">✓ {form.requiredSkills.length} skill(s) selected</p>
-              )}
+              {form.requiredSkills.length > 0 && <p className="text-xs text-indigo-600 mt-2">✓ {form.requiredSkills.length} selected</p>}
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Job Description</label>
-              <textarea name="description" value={form.description} onChange={handleChange} disabled={loading} rows="3"
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+              <textarea name="description" value={form.description} onChange={hc} disabled={loading} rows="3"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="Describe responsibilities and what workers will be doing..." />
+                placeholder="Describe responsibilities..." />
             </div>
-
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Special Requirements</label>
-              <textarea name="requirements" value={form.requirements} onChange={handleChange} disabled={loading} rows="2"
+              <textarea name="requirements" value={form.requirements} onChange={hc} disabled={loading} rows="2"
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="e.g., Formal dress code, must have own camera..." />
+                placeholder="e.g., Formal dress code..." />
             </div>
-
             <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex gap-3">
               <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
               <div className="text-sm text-yellow-800">
                 <p className="font-semibold mb-1">Escrow Payment Required</p>
-                <p>Total budget: ₹{form.pay && form.slotsTotal ? Number(form.pay) * Number(form.slotsTotal) : '—'} must be deposited before workers are confirmed.</p>
+                <p>Total budget: ₹{form.pay && form.slotsTotal ? Number(form.pay) * Number(form.slotsTotal) : '—'}</p>
               </div>
             </div>
           </div>
-
           <div className="p-6 border-t bg-gray-50 flex gap-3 justify-end sticky bottom-0">
             <button onClick={onClose} disabled={loading}
-              className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-white transition-all active:scale-95">
-              Cancel
-            </button>
+              className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-white transition-all active:scale-95">Cancel</button>
             <button onClick={handleSubmit} disabled={loading}
               className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold shadow-lg hover:-translate-y-0.5 transition-all active:scale-95 flex items-center gap-2">
               {loading ? <><Loader size={18} className="animate-spin" /> Saving...</> : isEdit ? 'Save Changes' : 'Publish Job'}
@@ -358,10 +456,7 @@ if (!res.success || res.data.kycStatus !== 'verified') {
           </div>
         </div>
       </div>
-
-      {showKycModal && (
-        <KycRequiredModal kycStatus={kycStatus} onClose={() => setShowKycModal(false)} />
-      )}
+      {showKyc && <KycRequiredModal kycStatus={kycStatus} onClose={() => setShowKyc(false)} />}
     </>
   );
 };
@@ -371,18 +466,27 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
   const [applications, setApplications] = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [responding,   setResponding]   = useState(null);
+  const [ratingApp,    setRatingApp]    = useState(null);
+  const [chatApp, setChatApp] = useState(null);
 
-  useEffect(() => {
-    apiFetch(`/api/applications/job/${job._id}`).then(data => {
-      if (data.success) setApplications(data.data.applications);
-      setLoading(false);
-    });
-  }, [job._id]);
+  // Gig is "completed" when the event date is in the past
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isGigDatePast = new Date(job.date) < today;
+
+  const load = async () => {
+    setLoading(true);
+    const data = await apiFetch(`/api/applications/job/${job._id}`);
+    if (data.success) setApplications(data.data.applications);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [job._id]);
 
   const handleRespond = async (id, status) => {
     setResponding(id);
     const data = await apiFetch(`/api/applications/${id}/respond`, {
-      method: 'PATCH', body: JSON.stringify({ status }),
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     });
     if (data.success) {
       setApplications(prev => prev.map(a => a._id === id ? { ...a, status } : a));
@@ -391,96 +495,208 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
     setResponding(null);
   };
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl">
-        <div className="p-6 border-b sticky top-0 bg-white/95 backdrop-blur z-10 flex justify-between items-center">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">Applications</h3>
-            <p className="text-sm text-gray-500 mt-0.5">{job.title}</p>
-          </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full">
-            <X size={22} />
-          </button>
-        </div>
+  const handleRatingSuccess = () => {
+    load();     // refresh applications list so new rating is shown
+    onRespond(); // refresh parent stats
+  };
 
-        <div className="p-6">
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader className="animate-spin text-indigo-600" size={32} /></div>
-          ) : applications.length === 0 ? (
-            <div className="text-center py-12">
-              <Users size={48} className="mx-auto text-gray-300 mb-3" />
-              <p className="text-gray-500 font-medium">No applications yet</p>
-              <p className="text-sm text-gray-400 mt-1">Workers will apply soon.</p>
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl">
+          <div className="p-6 border-b sticky top-0 bg-white/95 backdrop-blur z-10 flex justify-between items-center">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900">Applications</h3>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {job.title}
+                {isGigDatePast && <span className="ml-2 text-blue-600 font-semibold">• Event Passed</span>}
+              </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {applications.map(app => {
-                const worker  = app.workerId;
-                const profile = app.workerProfile;
-                return (
-                  <div key={app._id} className="border border-gray-100 rounded-xl p-5 hover:border-indigo-100 hover:bg-indigo-50/20 transition-all">
-                    <div className="flex flex-col sm:flex-row justify-between gap-4">
-                      <div className="flex gap-4">
-                        <img src={worker?.profilePicture || `https://i.pravatar.cc/150?u=${worker?._id}`}
-                          alt={worker?.fullName} className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
-                        <div>
-                          <p className="font-bold text-gray-900">{worker?.fullName}</p>
-                          <p className="text-sm text-gray-500">{worker?.email}</p>
-                          {profile && (
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {profile.skills?.slice(0, 3).map(s => (
-                                <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">{s}</span>
-                              ))}
-                              {profile.experienceLevel && (
-                                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium capitalize">{profile.experienceLevel}</span>
+            <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full">
+              <X size={22} />
+            </button>
+          </div>
+
+          <div className="p-6">
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <Loader className="animate-spin text-indigo-600" size={32} />
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="text-center py-12">
+                <Users size={48} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">No applications yet</p>
+                <p className="text-sm text-gray-400 mt-1">Workers will apply soon.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {applications.map(app => {
+                  const worker  = app.workerId;
+                  const profile = app.workerProfile;
+
+                  // ── FIX 1: check workerRating (the new field), NOT the legacy rating field
+                  const alreadyRated = !!(app.workerRating?.score && app.workerRating.score > 0);
+
+                  return (
+                    <div key={app._id}
+                      className="border border-gray-100 rounded-xl p-5 hover:border-indigo-100 hover:bg-indigo-50/20 transition-all">
+                      <div className="flex flex-col sm:flex-row justify-between gap-4">
+
+                        {/* LEFT — worker info */}
+                        <div className="flex gap-4">
+                          <img
+                            src={worker?.profilePicture || `https://i.pravatar.cc/150?u=${worker?._id}`}
+                            alt={worker?.fullName}
+                            className="w-14 h-14 rounded-full object-cover flex-shrink-0"
+                          />
+                          <div>
+                            <p className="font-bold text-gray-900">{worker?.fullName}</p>
+                            <p className="text-sm text-gray-500">{worker?.email}</p>
+
+                            {/* Skills + experience */}
+                            {profile && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {profile.skills?.slice(0, 3).map(s => (
+                                  <span key={s} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded text-xs font-medium">{s}</span>
+                                ))}
+                                {profile.experienceLevel && (
+                                  <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs font-medium capitalize">{profile.experienceLevel}</span>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Worker's existing platform rating */}
+                            {profile?.ratings?.average > 0 && (
+                              <div className="flex items-center gap-1 mt-2">
+                                <StarDisplay score={profile.ratings.average} />
+                                <span className="text-xs text-gray-400">({profile.ratings.total} ratings)</span>
+                              </div>
+                            )}
+
+                            {/* Cover note */}
+                            {app.coverNote && (
+                              <p className="text-sm text-gray-600 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">
+                                "{app.coverNote}"
+                              </p>
+                            )}
+
+                            <p className="text-xs text-gray-400 mt-2">
+                              Applied {new Date(app.appliedAt).toLocaleDateString('en-IN')}
+                            </p>
+
+                            {/* ── FIX 3: show rating using workerRating field, not legacy rating */}
+                            {alreadyRated && (
+                              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                                <p className="text-xs font-semibold text-green-700 mb-1.5">
+                                  ✓ Your rating for this worker:
+                                </p>
+                                <StarDisplay score={app.workerRating.score} />
+                                {app.workerRating.review && (
+                                  <p className="text-xs text-gray-600 mt-1.5 italic">
+                                    "{app.workerRating.review}"
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* RIGHT — status + actions */}
+                        <div className="flex sm:flex-col gap-2 items-start sm:items-end flex-shrink-0">
+                          {/* Status badge */}
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            app.status === 'Accepted'  ? 'bg-green-100 text-green-700'  :
+                            app.status === 'Rejected'  ? 'bg-red-100 text-red-700'      :
+                            app.status === 'Withdrawn' ? 'bg-gray-100 text-gray-600'    :
+                            app.status === 'Completed' ? 'bg-blue-100 text-blue-700'    :
+                                                         'bg-amber-100 text-amber-700'
+                          }`}>
+                            {app.status}
+                          </span>
+
+                          {/* Hire / Reject — only for pending applications */}
+                          {app.status === 'Pending' && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleRespond(app._id, 'Accepted')}
+                                disabled={responding === app._id}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition-all flex items-center gap-1 disabled:opacity-60"
+                              >
+                                {responding === app._id
+                                  ? <Loader size={14} className="animate-spin" />
+                                  : <CheckSquare size={14} />} Hire
+                              </button>
+                              <button
+                                onClick={() => handleRespond(app._id, 'Rejected')}
+                                disabled={responding === app._id}
+                                className="px-4 py-2 border border-red-200 text-red-600 rounded-lg font-semibold text-sm hover:bg-red-50 transition-all flex items-center gap-1 disabled:opacity-60"
+                              >
+                                {responding === app._id
+                                  ? <Loader size={14} className="animate-spin" />
+                                  : <XSquare size={14} />} Reject
+                              </button>
+                            </div>
+                          )}
+
+                          {/*
+                            ── FIX 2: Show "Rate Worker" button when:
+                               - application status is 'Accepted'  (not yet rated/completed)
+                               - AND event date is in the past     (gig has occurred)
+                               - AND not already rated             (workerRating.score is empty)
+                          */}
+                          {app.status === 'Completed' && isGigDatePast && !alreadyRated && (
+                            <button
+                              onClick={() => setRatingApp(app)}
+                              className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg font-bold text-sm hover:opacity-90 transition-all active:scale-95 flex items-center gap-2"
+                            >
+                              <Star size={14} /> Rate Worker
+                            </button>
+                          )}
+
+                          {/* Already rated — show a small "Rated" pill */}
+                          {app.status === 'Completed' && alreadyRated && (
+                            <span className="flex items-center gap-1 px-3 py-1 bg-green-50 border border-green-200 text-green-700 rounded-full text-xs font-bold">
+                              <CheckCircle size={12} /> Rated
+                            </span>
+                          )}
+                         
+                         {(app.status === 'Accepted' || app.status === 'Completed') && (
+                                <button
+                                  onClick={() => setChatApp(app)}
+                                  className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg font-bold text-sm hover:bg-indigo-100 transition-all flex items-center gap-2"
+                                >
+                                  <MessageSquare size={14} /> Message
+                                </button>
                               )}
-                            </div>
-                          )}
-                          {profile?.ratings?.average > 0 && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <Star size={13} className="text-amber-400 fill-current" />
-                              <span className="text-sm font-semibold text-gray-700">{profile.ratings.average}</span>
-                              <span className="text-xs text-gray-400">({profile.ratings.total} ratings)</span>
-                            </div>
-                          )}
-                          {app.coverNote && (
-                            <p className="text-sm text-gray-600 mt-2 italic bg-gray-50 px-3 py-2 rounded-lg">"{app.coverNote}"</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-2">Applied {new Date(app.appliedAt).toLocaleDateString('en-IN')}</p>
+
                         </div>
                       </div>
-
-                      <div className="flex sm:flex-col gap-2 items-start sm:items-end">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          app.status === 'Accepted'  ? 'bg-green-100 text-green-700'  :
-                          app.status === 'Rejected'  ? 'bg-red-100 text-red-700'      :
-                          app.status === 'Withdrawn' ? 'bg-gray-100 text-gray-600'   :
-                          'bg-amber-100 text-amber-700'
-                        }`}>{app.status}</span>
-
-                        {app.status === 'Pending' && (
-                          <div className="flex gap-2">
-                            <button onClick={() => handleRespond(app._id, 'Accepted')} disabled={responding === app._id}
-                              className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition-all flex items-center gap-1 disabled:opacity-60">
-                              {responding === app._id ? <Loader size={14} className="animate-spin" /> : <CheckSquare size={14} />} Hire
-                            </button>
-                            <button onClick={() => handleRespond(app._id, 'Rejected')} disabled={responding === app._id}
-                              className="px-4 py-2 border border-red-200 text-red-600 rounded-lg font-semibold text-sm hover:bg-red-50 transition-all flex items-center gap-1 disabled:opacity-60">
-                              {responding === app._id ? <Loader size={14} className="animate-spin" /> : <XSquare size={14} />} Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Rate Worker modal rendered outside the applications modal so z-index stacks correctly */}
+      {ratingApp && (
+        <RateWorkerModal
+          application={ratingApp}
+          onClose={() => setRatingApp(null)}
+          onSuccess={handleRatingSuccess}
+        />
+      )}
+      {chatApp && (
+  <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <ChatWindow
+      applicationId={chatApp?._id}  // 🔥 FIX
+      onClose={() => setChatApp(null)}
+    />
+  </div>
+)}
+    </>
   );
 };
 
@@ -498,7 +714,7 @@ const OrganizerDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [jobs,          setJobs]          = useState([]);
   const [hiredWorkers,  setHiredWorkers]  = useState([]);
-  const [kycStatus,     setKycStatus]     = useState('pending');
+  const [kycStatus,     setKycStatus]     = useState(localStorage.getItem('kycStatus') || 'pending');
 
   const [loadingDash,   setLoadingDash]   = useState(true);
   const [loadingJobs,   setLoadingJobs]   = useState(true);
@@ -509,13 +725,11 @@ const OrganizerDashboard = () => {
   const userName  = localStorage.getItem('userName')  || 'Organiser';
   const userEmail = localStorage.getItem('userEmail') || '';
 
-  console.log("Stored userName:", localStorage.getItem("userName"));
   const handleLogout = () => {
     ['token','userRole','userId','userName','userEmail','kycStatus'].forEach(k => localStorage.removeItem(k));
     navigate('/login');
   };
 
-  // Fetch dashboard stats + KYC status together
   const fetchDashboard = useCallback(async () => {
     setLoadingDash(true);
     const [dashRes, kycRes] = await Promise.all([
@@ -526,6 +740,7 @@ const OrganizerDashboard = () => {
     else setErrorMsg(dashRes.message || 'Failed to load dashboard.');
     if (kycRes.success) {
       setKycStatus(kycRes.data.kycStatus);
+      localStorage.setItem('kycStatus', kycRes.data.kycStatus);
     }
     setLoadingDash(false);
   }, []);
@@ -557,21 +772,15 @@ const OrganizerDashboard = () => {
     setEditingJob(null);
   };
 
-  // Check KYC before opening job modal
   const handleCreateJobClick = async () => {
-  const res = await apiFetch('/api/kyc/my');
-
-  if (res.success) {
-    setKycStatus(res.data.kycStatus);
-
-    if (res.data.kycStatus !== 'verified') {
-      setShowKycModal(true);
-      return;
+    const res = await apiFetch('/api/kyc/my');
+    if (res.success) {
+      setKycStatus(res.data.kycStatus);
+      localStorage.setItem('kycStatus', res.data.kycStatus);
+      if (res.data.kycStatus !== 'verified') { setShowKycModal(true); return; }
     }
-  }
-
-  setShowJobModal(true);
-};
+    setShowJobModal(true);
+  };
 
   const handleDeleteJob = async (jobId) => {
     if (!window.confirm('Delete this job and all its applications?')) return;
@@ -585,10 +794,12 @@ const OrganizerDashboard = () => {
   const handleToggleStatus = async (job) => {
     const newStatus = job.status === 'Active' ? 'Paused' : 'Active';
     const data = await apiFetch(`/api/jobs/${job._id}`, { method: 'PUT', body: JSON.stringify({ status: newStatus }) });
-    if (data.success) { setJobs(prev => prev.map(j => j._id === job._id ? { ...j, status: newStatus } : j)); fetchDashboard(); }
+    if (data.success) {
+      setJobs(prev => prev.map(j => j._id === job._id ? { ...j, status: newStatus } : j));
+      fetchDashboard();
+    }
   };
 
-  // Helpers
   const formatPay = (pay) => {
     if (!pay) return '—';
     return `₹${pay.amount?.toLocaleString('en-IN')}${pay.type==='per_day'?'/day':pay.type==='per_hour'?'/hr':' fixed'}`;
@@ -601,11 +812,13 @@ const OrganizerDashboard = () => {
     Cancelled: 'bg-red-100 text-red-700',
   }[s] || 'bg-gray-100 text-gray-700');
 
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
   const stats = dashboardData ? [
-    { label: 'Active Jobs',       value: String(dashboardData.stats.activeJobs),       icon: Briefcase,  color: 'from-blue-500 to-blue-600'    },
-    { label: 'Total Jobs Posted', value: String(dashboardData.stats.totalJobsPosted),  icon: TrendingUp, color: 'from-purple-500 to-purple-600' },
-    { label: 'Total Hires',       value: String(dashboardData.stats.totalHires),       icon: UserCheck,  color: 'from-green-500 to-green-600'   },
-    { label: 'Escrow Balance',    value: `₹${(dashboardData.stats.escrowBalance||0).toLocaleString('en-IN')}`, icon: DollarSign, color: 'from-indigo-500 to-indigo-600' },
+    { label:'Active Jobs',       value:String(dashboardData.stats.activeJobs),       icon:Briefcase,  color:'from-blue-500 to-blue-600'    },
+    { label:'Total Jobs Posted', value:String(dashboardData.stats.totalJobsPosted),  icon:TrendingUp, color:'from-purple-500 to-purple-600' },
+    { label:'Total Hires',       value:String(dashboardData.stats.totalHires),       icon:UserCheck,  color:'from-green-500 to-green-600'   },
+    { label:'Escrow Balance',    value:`₹${(dashboardData.stats.escrowBalance||0).toLocaleString('en-IN')}`, icon:DollarSign, color:'from-indigo-500 to-indigo-600' },
   ] : [];
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -629,19 +842,18 @@ const OrganizerDashboard = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              {/* KYC status pill */}
               {kycStatus === 'verified'
                 ? <span className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
                     <CheckCircle size={12} /> KYC Verified
                   </span>
                 : <button onClick={() => navigate('/kyc')}
                     className={`hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${
-                      kycStatus === 'rejected'    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' :
-                      kycStatus === 'in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                                    'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
+                      kycStatus==='rejected'    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' :
+                      kycStatus==='in_progress' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                  'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
                     }`}>
                     <Shield size={12} />
-                    {kycStatus === 'rejected' ? 'KYC Rejected' : kycStatus === 'in_progress' ? 'KYC Pending' : 'Complete KYC'}
+                    {kycStatus==='rejected' ? 'KYC Rejected' : kycStatus==='in_progress' ? 'KYC Pending' : 'Complete KYC'}
                   </button>
               }
 
@@ -652,9 +864,7 @@ const OrganizerDashboard = () => {
                 )}
               </button>
 
-              {/* Profile avatar → /profile page */}
-              <button
-                onClick={() => navigate('/profile')}
+              <button onClick={() => navigate('/profile')}
                 className="flex items-center gap-2 pl-3 border-l hover:bg-gray-50 p-1 rounded-xl transition-colors cursor-pointer">
                 <img src={`https://i.pravatar.cc/150?u=${userEmail}`} alt="Profile"
                   className="w-9 h-9 rounded-full ring-2 ring-indigo-100" />
@@ -663,7 +873,7 @@ const OrganizerDashboard = () => {
                   <p className="text-xs text-indigo-600 font-medium">Organiser</p>
                 </div>
               </button>
-              
+
               <button onClick={handleLogout}
                 className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Logout">
                 <LogOut size={18} />
@@ -679,12 +889,10 @@ const OrganizerDashboard = () => {
         {/* SIDEBAR */}
         <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r transition-transform duration-300 ease-in-out shadow-sm`}>
           <div className="p-5 space-y-5 pt-4">
-            <button
-              onClick={handleCreateJobClick}
+            <button onClick={handleCreateJobClick}
               className="w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
               <Plus size={20} /> Create New Job
             </button>
-
             <nav className="space-y-1">
               {[
                 { id: 'overview',     label: 'Overview',      icon: BarChart3  },
@@ -722,7 +930,6 @@ const OrganizerDashboard = () => {
             </div>
           )}
 
-          {/* KYC banner — all tabs */}
           <KycBanner kycStatus={kycStatus} onNavigate={() => navigate('/kyc')} />
 
           {/* ═══ OVERVIEW ═══ */}
@@ -795,7 +1002,7 @@ const OrganizerDashboard = () => {
                   )}
                 </div>
 
-                {/* Upcoming Jobs */}
+                {/* Upcoming Events */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
                     <Calendar className="text-purple-600" size={20} /> Upcoming Events
@@ -806,8 +1013,7 @@ const OrganizerDashboard = () => {
                     <div className="text-center py-8">
                       <Calendar size={40} className="mx-auto text-gray-300 mb-2" />
                       <p className="text-gray-500 text-sm">No active jobs yet</p>
-                      <button onClick={handleCreateJobClick}
-                        className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-all">
+                      <button onClick={handleCreateJobClick} className="mt-3 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-all">
                         Post Your First Job
                       </button>
                     </div>
@@ -852,60 +1058,69 @@ const OrganizerDashboard = () => {
                   <Briefcase size={56} className="mx-auto text-gray-300 mb-4" />
                   <h3 className="text-xl font-bold text-gray-700 mb-2">No jobs posted yet</h3>
                   <p className="text-gray-500 mb-6">Post your first job to start finding volunteers</p>
-                  <button onClick={handleCreateJobClick}
-                    className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 transition-all">
+                  <button onClick={handleCreateJobClick} className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold hover:opacity-90 transition-all">
                     Create Your First Job
                   </button>
                 </div>
               ) : (
                 <div className="grid gap-5">
-                  {jobs.map(job => (
-                    <div key={job._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg hover:border-indigo-100 transition-all duration-300">
-                      <div className="flex flex-col lg:flex-row justify-between gap-5">
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>
-                                {job.urgent && <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold uppercase animate-pulse">Urgent</span>}
+                  {jobs.map(job => {
+                    const isCompleted = new Date(job.date) < today;
+                    return (
+                      <div key={job._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-lg hover:border-indigo-100 transition-all duration-300">
+                        <div className="flex flex-col lg:flex-row justify-between gap-5">
+                          <div className="flex-1">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="text-xl font-bold text-gray-900">{job.title}</h3>
+                                  {job.urgent && <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold uppercase animate-pulse">Urgent</span>}
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {job.requiredSkills?.map(s => <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{s}</span>)}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {job.requiredSkills?.map(s => <span key={s} className="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold">{s}</span>)}
-                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold ${isCompleted ? 'bg-blue-100 text-blue-700' : statusStyle(job.status)}`}>
+                                {isCompleted ? 'Completed' : job.status}
+                              </span>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusStyle(job.status)}`}>{job.status}</span>
+                            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 text-sm text-gray-500">
+                              <div className="flex items-center gap-2"><MapPin size={15} className="text-indigo-400 flex-shrink-0" /><span>{job.location?.city}</span></div>
+                              <div className="flex items-center gap-2"><Calendar size={15} className="text-indigo-400 flex-shrink-0" /><span>{new Date(job.date).toLocaleDateString('en-IN')} • {job.time}</span></div>
+                              <div className="flex items-center gap-2"><Users size={15} className="text-indigo-400 flex-shrink-0" /><span>{job.slotsFilled}/{job.slotsTotal} filled • {job.applicantCount} applied</span></div>
+                              <div className="flex items-center gap-2"><DollarSign size={15} className="text-indigo-400 flex-shrink-0" /><span className="font-semibold text-gray-800">{formatPay(job.pay)}</span></div>
+                            </div>
                           </div>
-                          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 text-sm text-gray-500">
-                            <div className="flex items-center gap-2"><MapPin size={15} className="text-indigo-400 flex-shrink-0" /><span>{job.location?.city}</span></div>
-                            <div className="flex items-center gap-2"><Calendar size={15} className="text-indigo-400 flex-shrink-0" /><span>{new Date(job.date).toLocaleDateString('en-IN')} • {job.time}</span></div>
-                            <div className="flex items-center gap-2"><Users size={15} className="text-indigo-400 flex-shrink-0" /><span>{job.slotsFilled}/{job.slotsTotal} filled • {job.applicantCount} applied</span></div>
-                            <div className="flex items-center gap-2"><DollarSign size={15} className="text-indigo-400 flex-shrink-0" /><span className="font-semibold text-gray-800">{formatPay(job.pay)}</span></div>
+                          <div className="flex lg:flex-col gap-2 flex-wrap">
+                            <button onClick={() => setViewApplicationsJob(job)}
+                              className={`flex-1 lg:flex-none px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 text-sm ${
+                                isCompleted ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                              }`}>
+                              <Eye size={15} /> {isCompleted ? 'View & Rate' : `Applications (${job.applicantCount})`}
+                            </button>
+                            {!isCompleted && (
+                              <>
+                                <button onClick={() => { setEditingJob(job); setShowJobModal(true); }}
+                                  className="flex-1 lg:flex-none px-4 py-2 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
+                                  <Edit size={15} /> Edit
+                                </button>
+                                <button onClick={() => handleToggleStatus(job)}
+                                  className={`flex-1 lg:flex-none px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 text-sm border ${
+                                    job.status === 'Active' ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-green-200 text-green-700 hover:bg-green-50'
+                                  }`}>
+                                  {job.status === 'Active' ? '⏸ Pause' : '▶ Activate'}
+                                </button>
+                              </>
+                            )}
+                            <button onClick={() => handleDeleteJob(job._id)} disabled={deletingJobId === job._id}
+                              className="flex-1 lg:flex-none px-4 py-2 border border-red-100 text-red-500 rounded-xl font-bold hover:bg-red-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                              {deletingJobId === job._id ? <Loader size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete
+                            </button>
                           </div>
-                        </div>
-
-                        <div className="flex lg:flex-col gap-2 flex-wrap">
-                          <button onClick={() => setViewApplicationsJob(job)}
-                            className="flex-1 lg:flex-none px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
-                            <Eye size={15} /> Applications ({job.applicantCount})
-                          </button>
-                          <button onClick={() => { setEditingJob(job); setShowJobModal(true); }}
-                            className="flex-1 lg:flex-none px-4 py-2 border border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm">
-                            <Edit size={15} /> Edit
-                          </button>
-                          <button onClick={() => handleToggleStatus(job)}
-                            className={`flex-1 lg:flex-none px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 text-sm border ${
-                              job.status === 'Active' ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-green-200 text-green-700 hover:bg-green-50'
-                            }`}>
-                            {job.status === 'Active' ? '⏸ Pause' : '▶ Activate'}
-                          </button>
-                          <button onClick={() => handleDeleteJob(job._id)} disabled={deletingJobId === job._id}
-                            className="flex-1 lg:flex-none px-4 py-2 border border-red-100 text-red-500 rounded-xl font-bold hover:bg-red-50 transition-all active:scale-95 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
-                            {deletingJobId === job._id ? <Loader size={15} className="animate-spin" /> : <Trash2 size={15} />} Delete
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -924,33 +1139,40 @@ const OrganizerDashboard = () => {
                 </div>
               ) : (
                 <div className="grid gap-4">
-                  {jobs.map(job => (
-                    <div key={job._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-indigo-100 hover:shadow-md transition-all">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-gray-900">{job.title}</h3>
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusStyle(job.status)}`}>{job.status}</span>
+                  {jobs.map(job => {
+                    const isCompleted = new Date(job.date) < today;
+                    return (
+                      <div key={job._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:border-indigo-100 hover:shadow-md transition-all">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-gray-900">{job.title}</h3>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isCompleted ? 'bg-blue-100 text-blue-700' : statusStyle(job.status)}`}>
+                                {isCompleted ? 'Completed' : job.status}
+                              </span>
+                            </div>
+                            <div className="flex gap-4 text-sm text-gray-500 mt-1">
+                              <span className="flex items-center gap-1"><MapPin size={13} className="text-indigo-400" /> {job.location?.city}</span>
+                              <span className="flex items-center gap-1"><Calendar size={13} className="text-indigo-400" /> {new Date(job.date).toLocaleDateString('en-IN')}</span>
+                              <span className="flex items-center gap-1"><Users size={13} className="text-indigo-400" /> {job.applicantCount} applied</span>
+                            </div>
                           </div>
-                          <div className="flex gap-4 text-sm text-gray-500 mt-1">
-                            <span className="flex items-center gap-1"><MapPin size={13} className="text-indigo-400" /> {job.location?.city}</span>
-                            <span className="flex items-center gap-1"><Calendar size={13} className="text-indigo-400" /> {new Date(job.date).toLocaleDateString('en-IN')}</span>
-                            <span className="flex items-center gap-1"><Users size={13} className="text-indigo-400" /> {job.applicantCount} applied</span>
-                          </div>
+                          <button onClick={() => setViewApplicationsJob(job)}
+                            className={`px-5 py-2.5 text-white rounded-xl font-bold text-sm transition-all active:scale-95 flex items-center gap-2 flex-shrink-0 ${
+                              isCompleted ? 'bg-blue-600 hover:bg-blue-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                            }`}>
+                            <Eye size={15} /> {isCompleted ? 'View & Rate' : 'View Applicants'}
+                          </button>
                         </div>
-                        <button onClick={() => setViewApplicationsJob(job)}
-                          className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2 flex-shrink-0">
-                          <Eye size={15} /> View Applicants
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
           )}
 
-          {/* ═══ HIRED ═══ */}
+          {/* ═══ HIRED WORKERS ═══ */}
           {activeTab === 'hired' && (
             <div className="space-y-6">
               <h1 className="text-3xl font-extrabold text-gray-900">Hired Workers</h1>
