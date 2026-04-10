@@ -25,13 +25,13 @@ exports.updateProfile = async (req, res) => {
     allowedFields.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
 
     const profile = await WorkerProfile.findOneAndUpdate(
-      { userId: req.user.userId },
+      { userId: req.user._id },
       { $set: update },
       { new: true, runValidators: true }
     );
 
     if (req.body.fullName) {
-      await User.findByIdAndUpdate(req.user.userId, { fullName: req.body.fullName });
+      await User.findByIdAndUpdate(req.user._id, { fullName: req.body.fullName });
     }
 
     res.json({ success: true, message: 'Profile updated.', data: { profile } });
@@ -44,14 +44,14 @@ exports.updateProfile = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const [user, profile, completedGigs, upcomingGigs] = await Promise.all([
-      User.findById(req.user.userId),
-      WorkerProfile.findOne({ userId: req.user.userId }),
-      Application.find({ workerId: req.user.userId, status: 'Completed' })
+      User.findById(req.user._id),
+      WorkerProfile.findOne({ userId: req.user._id }),
+      Application.find({ workerId: req.user._id, status: 'Completed' })
         .populate('jobId', 'title date pay location')
         .populate('organizerId', 'fullName')
         .sort({ respondedAt: -1 })
         .limit(10),
-      Application.find({ workerId: req.user.userId, status: 'Accepted' })
+      Application.find({ workerId: req.user._id, status: 'Accepted' })
         .populate('jobId', 'title date time pay location duration')
         .populate('organizerId', 'fullName')
         .sort({ 'jobId.date': 1 })

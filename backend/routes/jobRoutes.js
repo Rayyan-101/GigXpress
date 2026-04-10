@@ -7,7 +7,7 @@ const Application = require('../models/Application');
 const User = require('../models/User');
 
 const { protect } = require('../middleware/auth');
-
+const WorkerProfile = require('../models/WorkerProfile');
 
 // ─────────────────────────────────────────────
 // ✅ CREATE JOB (Advanced with KYC)
@@ -88,8 +88,8 @@ router.get('/', async (req, res) => {
     const { city, skill, category, search, page = 1, limit = 20 } = req.query;
 
     const filter = {
-      status: 'Active',
-      date: { $gte: new Date() }
+      // status: 'Active',
+      // date: { $gte: new Date() }
     };
 
     if (city) filter['location.city'] = new RegExp(city, 'i');
@@ -99,14 +99,35 @@ router.get('/', async (req, res) => {
 
     const skip = (Number(page) - 1) * Number(limit);
 
-    const [jobs, total] = await Promise.all([
-      Job.find(filter)
-        .populate('organizerId', 'fullName profilePicture')
-        .sort({ urgent: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(Number(limit)),
-      Job.countDocuments(filter)
-    ]);
+    // ✅ Step 1: Fetch jobs
+    const jobsRaw = await Job.find(filter)
+      .populate('organizerId', 'fullName profilePicture')
+      .sort({ urgent: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    // ✅ Step 2: Attach ratings (from WorkerProfile / OrganizerProfile)
+    const WorkerProfile = require('../models/WorkerProfile');
+
+    const jobs = await Promise.all(
+      jobsRaw.map(async (job) => {
+        // 🔥 Fetch rating for organizer (current system)
+        const profile = await WorkerProfile.findOne({
+          userId: job.organizerId?._id
+        }).select('ratings');
+
+        return {
+          ...job.toObject(),
+          ratings: profile?.ratings || {
+            average: 0,
+            total: 0
+          }
+        };
+      })
+    );
+
+    // ✅ Step 3: Total count
+    const total = await Job.countDocuments(filter);
 
     res.json({
       success: true,
@@ -120,7 +141,10 @@ router.get('/', async (req, res) => {
 
   } catch (error) {
     console.error('GET JOBS ERROR:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 });
 

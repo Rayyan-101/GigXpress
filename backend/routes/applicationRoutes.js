@@ -6,13 +6,17 @@ const Job = require('../models/Job');
 const WorkerProfile = require('../models/WorkerProfile');
 const OrganizerProfile = require('../models/OrganizerProfile');
 const User = require('../models/User');
+const appCtrl = require('../controllers/applicationController');
 
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 
 // ─────────────────────────────────────────────
 // ✅ ACCEPT / REJECT APPLICATION
 // ─────────────────────────────────────────────
+
+router.patch('/:id/rate-organizer',   protect, authorize('worker'),    appCtrl.rateOrganizer);
+
 router.patch('/:id/respond', protect, async (req, res) => {
   try {
     const { status } = req.body;
@@ -302,12 +306,13 @@ router.patch('/:id/withdraw', protect, async (req, res) => {
 // ─────────────────────────────────────────────
 router.patch('/:id/complete', protect, async (req, res) => {
   try {
+    console.log('Hi');
     const { score, review } = req.body;
 
     const application = await Application.findOne({
       _id: req.params.id,
       organizerId: req.user._id,
-      status: 'Accepted'
+      status: { $in: ['Accepted', 'Completed'] }
     });
 
     if (!application) {
@@ -328,13 +333,18 @@ router.patch('/:id/complete', protect, async (req, res) => {
 
     // ⭐ Calculate avg rating
     const allRatings = await Application.find({
-      workerId: application._id,
+      workerId: application.workerId,
       'rating.score': { $ne: null }
     });
 
-    const avgRating =
-      allRatings.reduce((sum, a) => sum + a.rating.score, 0) /
-      allRatings.length;
+    const total = allRatings.reduce(
+  (sum, a) => sum + (a.rating?.score || 0),
+  0
+);
+
+const avgRating = allRatings.length > 0
+  ? total / allRatings.length
+  : 0;
 
     await WorkerProfile.findOneAndUpdate(
       { userId: application.workerId },
