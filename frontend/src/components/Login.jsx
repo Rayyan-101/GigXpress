@@ -29,7 +29,8 @@ const Login = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const BASE_URL = import.meta.env.VITE_API_URL;
+      const res = await fetch(`${BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // 🔥 cookie support
