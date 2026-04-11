@@ -77,7 +77,8 @@ const Home = () => {
 
   const handleLogout = async () => {
       try {
-    await fetch('http://localhost:5000/api/auth/logout', {
+    const BASE_URL = import.meta.env.VITE_API_URL;
+    await fetch(`${BASE_URL}/api/auth/logout`, {
       method: 'POST',
       credentials: 'include'
     });
