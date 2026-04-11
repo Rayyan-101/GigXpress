@@ -18,7 +18,7 @@ const app = express();
 const server = http.createServer(app);
 const io     = initSocket(server);
 app.set('io', io);
-
+app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -28,15 +28,7 @@ const allowedOrigins = [
 // Middleware
 console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed: " + origin));
-    }
-  },
+  origin: "https://gig-xpress-wu8e.vercel.app",
   credentials: true
 }));
 // app.use(cors({
