@@ -238,8 +238,8 @@ exports.getMe = async (req, res) => {
 exports.logout = (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    sameSite: 'Strict',
-    secure: false // 🔥 MUST match how cookie was set
+    sameSite: 'none',
+    secure: true // 🔥 MUST match how cookie was set
   });
 
   res.json({ success: true });
