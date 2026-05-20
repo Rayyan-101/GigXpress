@@ -20,13 +20,20 @@ const io     = initSocket(server);
 app.set('io', io);
 app.set("trust proxy", 1);
 
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  "https://gig-xpress-wu8e.vercel.app"
+  "https://gig-xpress-wu8e.vercel.app",
+  "https://gig-xpress-delta.vercel.app",
+  ...envOrigins
 ];
 // Middleware
-console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
+console.log("Allowed frontend origins:", allowedOrigins);
 app.use(cors({
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
