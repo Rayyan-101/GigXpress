@@ -13,6 +13,17 @@ const generateToken = (userId, role) => {
   );
 };
 
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  return {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  };
+};
+
 // @desc    Register new user (Organizer or Worker)
 // @route   POST /api/auth/register/:role
 // @access  Public
@@ -99,12 +110,7 @@ exports.register = async (req, res) => {
     // await sendVerificationEmail(user.email, user._id);
 
     // Return success response
-    res.cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-      });
+    res.cookie('token', token, getCookieOptions());
 
       res.status(201).json({
         success: true,
@@ -178,12 +184,7 @@ exports.login = async (req, res) => {
     // Generate token
     const token = generateToken(user._id, user.role);
 
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+    res.cookie('token', token, getCookieOptions());
 
 res.status(200).json({
   success: true,
@@ -236,11 +237,7 @@ exports.getMe = async (req, res) => {
 };
 
 exports.logout = (req, res) => {
-  res.clearCookie('token', {
-    httpOnly: true,
-    sameSite: 'none',
-    secure: true // 🔥 MUST match how cookie was set
-  });
+  res.clearCookie('token', getCookieOptions());
 
   res.json({ success: true });
 };

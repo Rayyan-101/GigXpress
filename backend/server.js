@@ -28,7 +28,13 @@ const allowedOrigins = [
 // Middleware
 console.log("FRONTEND_URL:", process.env.FRONTEND_URL);
 app.use(cors({
-  origin: "https://gig-xpress-wu8e.vercel.app",
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`Origin ${origin} is not allowed by CORS`));
+  },
   credentials: true
 }));
 // app.use(cors({

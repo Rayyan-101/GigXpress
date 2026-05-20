@@ -229,9 +229,18 @@ if (loadingAuth) return null;
                 </>
               ) : (
                 <>
-                  <span className="text-gray-700 font-medium">
-                    Hi, {user?.fullName}
-                  </span>
+                  {user?.role === 'admin' ? (
+                    <button
+                      onClick={() => navigate('/admin')}
+                      className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:opacity-90 transition"
+                    >
+                      Your Dashboard
+                    </button>
+                  ) : (
+                    <span className="text-gray-700 font-medium">
+                      Hi, {user?.fullName}
+                    </span>
+                  )}
 
                   <button
                     onClick={handleLogout}
@@ -266,10 +275,41 @@ if (loadingAuth) return null;
               <a href="#features" className="block py-2 text-gray-700 hover:text-indigo-600 font-medium">Features</a>
               <a href="#how-it-works" className="block py-2 text-gray-700 hover:text-indigo-600 font-medium">How It Works</a>
               <a href="#categories" className="block py-2 text-gray-700 hover:text-indigo-600 font-medium">Categories</a>
-              <button className="block w-full text-left py-2 text-indigo-600 font-semibold">Login</button>
-              <button className="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg">
-                Get Started
-              </button>
+              {!isLoggedIn ? (
+                <>
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="block w-full text-left py-2 text-indigo-600 font-semibold"
+                  >
+                    Login
+                  </button>
+                  <button
+                    onClick={() => navigate('/signup')}
+                    className="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg"
+                  >
+                    Signup
+                  </button>
+                </>
+              ) : (
+                <>
+                  {user?.role === 'admin' ? (
+                    <button
+                      onClick={() => navigate('/admin')}
+                      className="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold"
+                    >
+                      Dashboard
+                    </button>
+                  ) : (
+                    <p className="py-2 text-gray-700 font-medium">Hi, {user?.fullName}</p>
+                  )}
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-6 py-2.5 bg-red-500 text-white rounded-lg"
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
