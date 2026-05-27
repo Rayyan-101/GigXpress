@@ -67,6 +67,7 @@ app.use('/api/admin',       require('./routes/adminRoutes'));
 app.use('/api/kyc',         require('./routes/kycRoutes'));
 
 app.use('/api/chat',         require('./routes/chatRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 
 // Health check route

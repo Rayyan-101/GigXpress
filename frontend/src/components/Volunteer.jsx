@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Briefcase, Star, MapPin, Calendar, MessageSquare, DollarSign, Award,
   TrendingUp, CheckCircle, Clock, Filter, Search, Eye,
-  Heart, Bell, Menu, X, Target, Trophy, Zap, Download,
+  Heart, Menu, X, Target, Trophy, Zap, Download,
   LogOut, Loader, RefreshCw, AlertCircle, ChevronDown,
   Send, XCircle, Shield
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatWindow from './ChatWindow';
+import NotificationBell from './NotificationBell';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -433,9 +434,7 @@ const WorkerDashboard = () => {
                 ? <span className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200"><CheckCircle size={12}/> KYC Verified</span>
                 : <button onClick={() => navigate('/kyc')} className={`hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition-all ${kycStatus==='rejected'?'bg-red-50 text-red-700 border-red-200':kycStatus==='in_progress'?'bg-amber-50 text-amber-700 border-amber-200':'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
                     <Shield size={12}/>{kycStatus==='rejected'?'KYC Rejected':kycStatus==='in_progress'?'KYC Pending':'Complete KYC'}</button>}
-              <button className="relative p-2 hover:bg-gray-100 rounded-full">
-                <Bell size={20}/>{myApplications.some(a=>a.status==='Accepted')&&<span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"/>}
-              </button>
+              <NotificationBell onNavigate={navigate} />
               <button onClick={() => navigate('/profile')} className="flex items-center gap-2 pl-3 border-l hover:bg-gray-50 p-1 rounded-xl transition-colors">
                 <img src={`https://i.pravatar.cc/150?u=${userEmail}`} alt="Profile" className="w-10 h-10 rounded-full border-2 border-transparent hover:border-indigo-500 transition-all"/>
                 <div className="hidden sm:block text-left"><p className="text-sm font-semibold">{userName}</p><p className="text-xs text-gray-500 capitalize">{currentLevelObj.label}</p></div>

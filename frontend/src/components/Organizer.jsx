@@ -2,12 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Briefcase, Plus, Users, Clock, MessageSquare, DollarSign, CheckCircle,
   Star, MapPin, Calendar, Edit, Trash2, Eye, UserCheck,
-  TrendingUp, AlertCircle, Download, BarChart3, Bell,
+  TrendingUp, AlertCircle, Download, BarChart3,
   Menu, X, Loader, RefreshCw, CheckSquare, XSquare,
   LogOut, Shield, XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatWindow from './ChatWindow';
+import NotificationBell from './NotificationBell';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -857,12 +858,7 @@ const OrganizerDashboard = () => {
                   </button>
               }
 
-              <button className="relative p-2 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all">
-                <Bell size={20} />
-                {(dashboardData?.recentApplications?.length || 0) > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-                )}
-              </button>
+              <NotificationBell onNavigate={navigate} />
 
               <button onClick={() => navigate('/profile')}
                 className="flex items-center gap-2 pl-3 border-l hover:bg-gray-50 p-1 rounded-xl transition-colors cursor-pointer">

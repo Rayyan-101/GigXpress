@@ -8,6 +8,7 @@ const User = require('../models/User');
 
 const { protect } = require('../middleware/auth');
 const WorkerProfile = require('../models/WorkerProfile');
+const { notifyWorkersAboutNewJob } = require('../services/notificationService');
 
 // ─────────────────────────────────────────────
 // ✅ CREATE JOB (Advanced with KYC)
@@ -66,6 +67,12 @@ router.post('/', protect, async (req, res) => {
       { userId: req.user._id },
       { $inc: { 'statistics.totalJobsPosted': 1, 'statistics.activeJobs': 1 } }
     );
+
+    await notifyWorkersAboutNewJob({
+      io: req.app.get('io'),
+      job,
+      organizer: req.user
+    });
 
     res.status(201).json({
       success: true,

@@ -66,6 +66,7 @@ const initSocket = (httpServer) => {
 
     // Register as online
     addOnlineUser(userId, socket.id);
+    socket.join(`user:${userId}`);
 
     // Notify contacts that this user is now online
     socket.broadcast.emit('user:online', { userId });

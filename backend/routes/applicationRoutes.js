@@ -7,6 +7,7 @@ const WorkerProfile = require('../models/WorkerProfile');
 const OrganizerProfile = require('../models/OrganizerProfile');
 const User = require('../models/User');
 const appCtrl = require('../controllers/applicationController');
+const { createNotification } = require('../services/notificationService');
 
 const { protect, authorize } = require('../middleware/auth');
 
@@ -61,6 +62,18 @@ router.patch('/:id/respond', protect, async (req, res) => {
         { $inc: { 'statistics.totalHires': 1 } }
       );
     }
+
+    const job = await Job.findById(application.jobId).select('title');
+    await createNotification({
+      io: req.app.get('io'),
+      recipientId: application.workerId,
+      actorId: req.user._id,
+      type: 'application_status',
+      title: `Application ${status.toLowerCase()}`,
+      message: `Your application for "${job?.title || 'a gig'}" was ${status.toLowerCase()}.`,
+      link: '/volunteer',
+      metadata: { jobId: application.jobId, applicationId: application._id }
+    });
 
     res.json({
       success: true,
@@ -140,6 +153,17 @@ router.post('/:jobId', protect, async (req, res) => {
 
         await application.save();
 
+        await createNotification({
+          io: req.app.get('io'),
+          recipientId: job.organizerId,
+          actorId: req.user._id,
+          type: 'new_application',
+          title: 'Application submitted again',
+          message: `${req.user.fullName} reapplied for "${job.title}".`,
+          link: '/organizer',
+          metadata: { jobId: job._id, applicationId: application._id }
+        });
+
         return res.json({
           success: true,
           message: 'Reapplied successfully!',
@@ -170,6 +194,17 @@ router.post('/:jobId', protect, async (req, res) => {
         { $inc: { 'statistics.totalGigsApplied': 1 } }
       )
     ]);
+
+    await createNotification({
+      io: req.app.get('io'),
+      recipientId: job.organizerId,
+      actorId: req.user._id,
+      type: 'new_application',
+      title: 'New application received',
+      message: `${req.user.fullName} applied for "${job.title}".`,
+      link: '/organizer',
+      metadata: { jobId: job._id, applicationId: application._id }
+    });
 
     res.status(201).json({
       success: true,

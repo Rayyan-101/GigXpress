@@ -95,19 +95,22 @@ const Home = () => {
   }
     };
 
+    const getDashboardPath = () => {
+      if (user?.role === 'organizer') return '/organizer';
+      if (user?.role === 'worker') return '/volunteer';
+      if (user?.role === 'admin') return '/admin';
+      return '/';
+    };
+
+    const handleDashboardClick = () => {
+      navigate(getDashboardPath());
+    };
+
     const handleGetStarted = () => {
       if (!isLoggedIn) {
         navigate('/login');
       } else {
-        if (user?.role === 'organizer') {
-          navigate('/organizer');
-        } else if (user?.role === 'worker') {
-          navigate('/volunteer');
-        }else if (user?.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/'); // fallback
-        }
+        handleDashboardClick();
       }
     };
 
@@ -229,18 +232,12 @@ if (loadingAuth) return null;
                 </>
               ) : (
                 <>
-                  {user?.role === 'admin' ? (
-                    <button
-                      onClick={() => navigate('/admin')}
-                      className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:opacity-90 transition"
-                    >
-                      Your Dashboard
-                    </button>
-                  ) : (
-                    <span className="text-gray-700 font-medium">
-                      Hi, {user?.fullName}
-                    </span>
-                  )}
+                  <button
+                    onClick={handleDashboardClick}
+                    className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold hover:opacity-90 transition"
+                  >
+                    Dashboard
+                  </button>
 
                   <button
                     onClick={handleLogout}
@@ -292,16 +289,12 @@ if (loadingAuth) return null;
                 </>
               ) : (
                 <>
-                  {user?.role === 'admin' ? (
-                    <button
-                      onClick={() => navigate('/admin')}
-                      className="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold"
-                    >
-                      Dashboard
-                    </button>
-                  ) : (
-                    <p className="py-2 text-gray-700 font-medium">Hi, {user?.fullName}</p>
-                  )}
+                  <button
+                    onClick={handleDashboardClick}
+                    className="w-full px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-semibold"
+                  >
+                    Dashboard
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="w-full px-6 py-2.5 bg-red-500 text-white rounded-lg"
