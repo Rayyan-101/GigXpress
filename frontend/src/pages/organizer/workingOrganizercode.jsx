@@ -7,8 +7,10 @@ import {
   LogOut, Shield, XCircle
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ChatWindow from './ChatWindow';
-import NotificationBell from './NotificationBell';
+import ChatWindow from '../../components/ChatWindow';
+import NotificationBell from '../../components/NotificationBell';
+import { StarDisplay, StarRatingInput } from '../../components/common/StarRating';
+import { EVENT_CATEGORIES as CATEGORIES } from '../../constants/events';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -29,39 +31,9 @@ const SKILL_OPTIONS = [
   'Event Management','Hospitality','Marketing','Technical Support',
   'AV Setup','Crowd Management','Registration Desk','Photography','Decoration',
 ];
-const CATEGORIES = ['Music','Sports','Corporate','Wedding','Education','Food','Startup','NGO','Community','Tech','Other'];
 
 // ─── STAR RATING INPUT (interactive) ─────────────────────────────────────────
-const StarRatingInput = ({ value, onChange, size = 32 }) => (
-  <div className="flex gap-2">
-    {[1, 2, 3, 4, 5].map(n => (
-      <button
-        key={n}
-        type="button"
-        onClick={() => onChange(n)}
-        className="transition-transform hover:scale-110 active:scale-95 focus:outline-none"
-      >
-        <Star
-          size={size}
-          className={n <= value ? 'text-amber-400 fill-amber-400' : 'text-gray-300 hover:text-amber-300'}
-        />
-      </button>
-    ))}
-  </div>
-);
-
 // ─── STAR DISPLAY (read-only) ─────────────────────────────────────────────────
-const StarDisplay = ({ score, size = 14 }) => (
-  <div className="flex items-center gap-1.5">
-    <div className="flex">
-      {[1, 2, 3, 4, 5].map(n => (
-        <Star key={n} size={size} className={n <= Math.round(score) ? 'text-amber-400 fill-amber-400' : 'text-gray-200'} />
-      ))}
-    </div>
-    <span className="text-sm font-semibold text-gray-700">{Number(score).toFixed(1)}</span>
-  </div>
-);
-
 // ─── RATE WORKER MODAL ────────────────────────────────────────────────────────
 // Opens when organiser clicks "Rate Worker" on a completed gig.
 // Calls PATCH /api/applications/:id/complete → sets status to Completed + saves workerRating.

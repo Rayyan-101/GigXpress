@@ -1,14 +1,14 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import Home from "./components/Home";
+import Home from "./pages/home/Home";
 import React from "react";
-import OrganizerDashboard from "./components/Organizer";
-import WorkerDashboard from "./components/Volunteer";
-import CompleteRegistrationFlow from "./components/CompleteRegistrationFlow";
-import AdminDashboard from "./components/AdminDashboard";
-import Login from "./components/Login";
-import KYCPage from "./components/KYCPage";
-import ProfilePage from "./components/ProfilePage";
+import OrganizerDashboard from "./pages/organizer/OrganizerDashboard";
+import WorkerDashboard from "./pages/worker/WorkerDashboard";
+import CompleteRegistrationFlow from "./pages/auth/CompleteRegistrationFlow";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import Login from "./pages/auth/Login";
+import KYCPage from "./pages/kyc/KYCPage";
+import ProfilePage from "./pages/profile/ProfilePage";
 
 // 🔥 UPDATED ProtectedRoute (cookie-based)
 const ProtectedRoute = ({ element, allowedRoles }) => {

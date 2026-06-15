@@ -5,36 +5,7 @@ import {
   User, Mail, Phone, MapPin, Briefcase, Star, Award,
   Edit3, LogOut, Loader, XCircle
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-const apiFetch = async (path, options = {}) => {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-
-    // 🔥 VERY IMPORTANT → send cookies automatically
-    credentials: 'include',
-
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  const data = await res.json();
-
-  // 🔥 Optional global error handling
-  if (res.status === 401) {
-    console.error("Unauthorized - redirecting to login");
-    window.location.href = "/login";
-  }
-
-  if (res.status === 403) {
-    console.error("Forbidden - access denied");
-  }
-
-  return data;
-};
+import { apiFetch } from '../../utils/api';
 
 const KycStatusBadge = ({ status }) => {
   const cfg = {

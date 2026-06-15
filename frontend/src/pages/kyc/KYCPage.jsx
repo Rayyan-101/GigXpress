@@ -4,20 +4,7 @@ import {
   Shield, Upload, CheckCircle, AlertCircle, Loader,
   ArrowLeft, User, FileText, Camera, X, Eye, EyeOff
 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-const apiFetch = async (path, options = {}) => {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...options,
-    credentials: 'include', // 🔥 MUST ADD
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  return res.json();
-};
+import { apiFetch } from '../../utils/api';
 
 // Convert file to base64
 const toBase64 = (file) => new Promise((resolve, reject) => {
