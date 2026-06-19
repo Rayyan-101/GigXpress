@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Shield, Upload, CheckCircle, AlertCircle, Loader,
-  ArrowLeft, User, FileText, Camera, X, Eye, EyeOff
+  ArrowLeft, User, FileText, Camera, X, RotateCcw
 } from 'lucide-react';
 import { apiFetch } from '../../utils/api';
 
@@ -59,6 +59,177 @@ const ImageUpload = ({ label, name, value, onChange, required = true }) => {
           </label>
         )}
       </div>
+    </div>
+  );
+};
+
+// ── Live camera selfie capture (no gallery picker — must be a real-time photo) ──
+const SelfieCapture = ({ label, name, value, onChange }) => {
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [preview, setPreview] = useState(value || null);
+  const [error, setError] = useState('');
+  const [starting, setStarting] = useState(false);
+
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  // Always release the camera when the component unmounts
+  useEffect(() => () => stopCamera(), []);
+
+  const startCamera = async () => {
+    setError('');
+    setStarting(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Camera access was denied. Please allow camera permission in your browser settings, or upload a photo instead.');
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        setError('No camera was found on this device. You can upload a photo instead.');
+      } else {
+        setError('Could not access the camera. You can upload a photo instead.');
+      }
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Attach the stream once the <video> element exists
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isCameraOpen]);
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || !video.videoWidth) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    // Draw the real (non-mirrored) frame so any text on the Aadhaar card stays legible.
+    // The <video> preview below is mirrored via CSS purely for a natural selfie feel.
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setPreview(dataUrl);
+    onChange(name, dataUrl);
+    stopCamera();
+  };
+
+  const retake = () => {
+    setPreview(null);
+    onChange(name, '');
+    startCamera();
+  };
+
+  const handleFallbackUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File too large. Max size is 2MB.');
+      return;
+    }
+    const b64 = await toBase64(file);
+    setPreview(b64);
+    onChange(name, b64);
+    setError('');
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-semibold text-gray-700 mb-2">
+        {label} <span className="text-red-500">*</span>
+      </label>
+
+      {error && (
+        <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3">
+          <div className="flex gap-2 mb-2">
+            <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={16} />
+            <p className="text-xs text-red-700">{error}</p>
+          </div>
+          <label className="inline-flex items-center text-xs font-semibold text-indigo-600 cursor-pointer hover:underline">
+            <Upload size={12} className="mr-1" /> Upload a photo instead
+            <input type="file" accept="image/*" className="hidden" onChange={handleFallbackUpload} />
+          </label>
+        </div>
+      )}
+
+      {preview ? (
+        <div className="relative rounded-xl overflow-hidden border-2 border-green-400 bg-green-50">
+          <img src={preview} alt={label} className="w-full h-64 object-cover" />
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
+            <CheckCircle size={11} /> Captured
+          </div>
+          <button
+            type="button"
+            onClick={retake}
+            className="absolute top-2 right-2 flex items-center gap-1 bg-white/90 text-gray-700 text-xs px-3 py-1.5 rounded-full font-semibold hover:bg-white transition-all shadow">
+            <RotateCcw size={13} /> Retake
+          </button>
+        </div>
+      ) : isCameraOpen ? (
+        <div className="relative rounded-xl overflow-hidden border-2 border-indigo-400 bg-black">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-64 object-cover"
+            style={{ transform: 'scaleX(-1)' }}
+          />
+          <div className="absolute top-3 left-3 right-3 bg-black/50 text-white text-xs px-3 py-1.5 rounded-full text-center">
+            Hold your Aadhaar card next to your face
+          </div>
+          <button
+            type="button"
+            onClick={stopCamera}
+            className="absolute top-3 right-3 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-all">
+            <X size={16} />
+          </button>
+          <div className="absolute inset-x-0 bottom-0 py-4 flex items-center justify-center bg-gradient-to-t from-black/60 to-transparent">
+            <button
+              type="button"
+              onClick={capturePhoto}
+              className="w-16 h-16 rounded-full bg-white border-4 border-indigo-500 flex items-center justify-center hover:scale-105 active:scale-95 transition-all">
+              <Camera size={24} className="text-indigo-600" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={startCamera}
+          disabled={starting}
+          className="w-full h-40 border-2 border-dashed border-gray-300 hover:border-indigo-400 bg-gray-50 rounded-xl flex flex-col items-center justify-center transition-all disabled:opacity-60">
+          {starting ? (
+            <Loader className="animate-spin text-indigo-500 mb-2" size={24} />
+          ) : (
+            <Camera size={28} className="text-gray-400 mb-2" />
+          )}
+          <p className="text-sm text-gray-500 font-medium">{starting ? 'Opening camera…' : 'Click to open camera'}</p>
+          <p className="text-xs text-gray-400 mt-1">Live photo only — gallery uploads aren't accepted here</p>
+        </button>
+      )}
+
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
@@ -356,13 +527,15 @@ const KYCPage = () => {
             <ImageUpload label="PAN Card Photo" name="panFront" value={form.panFront} onChange={setImageField} />
           </div>
 
-          {/* ── Selfie ── */}
+          {/* ── Live Selfie with Aadhaar ── */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-5 flex items-center gap-2">
               <Camera size={20} className="text-indigo-600" /> Selfie Verification
             </h3>
-            <p className="text-sm text-gray-500 mb-4">Take a clear photo of yourself holding your Aadhaar card.</p>
-            <ImageUpload label="Selfie with Aadhaar" name="selfie" value={form.selfie} onChange={setImageField} />
+            <p className="text-sm text-gray-500 mb-4">
+              Take a live photo of yourself holding your Aadhaar card. This must be captured in real time through your camera — gallery uploads aren't accepted for this step.
+            </p>
+            <SelfieCapture label="Live Selfie with Aadhaar" name="selfie" value={form.selfie} onChange={setImageField} />
           </div>
 
           {/* ── GST (organizer only) ── */}
