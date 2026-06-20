@@ -245,18 +245,6 @@ Completed Job History
 
 ---
 
-## 🎯 Future Enhancements
-
-* Real-time notifications
-* Chat system between organizers and volunteers
-* AI-powered job recommendations
-* Payment gateway integration
-* Certificate generation for completed gigs
-* Mobile application support
-* Analytics and reporting dashboard
-
----
-
 ## 👨‍💻 Author
 
 **Mohd Rayyan Lulaniya**
