@@ -102,32 +102,6 @@ MongoDB Database
 
 ---
 
-## 📂 Project Structure
-
-```text
-GigXpress/
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── assets/
-│   │   └── App.jsx
-│   │
-│   └── package.json
-│
-├── backend/
-│   ├── controllers/
-│   ├── middleware/
-│   ├── models/
-│   ├── routes/
-│   ├── uploads/
-│   ├── config/
-│   └── server.js
-│
-└── README.md
-```
-
 ---
 
 ## 📊 Core Modules
