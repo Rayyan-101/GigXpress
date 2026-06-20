@@ -245,19 +245,6 @@ Completed Job History
 
 ---
 
-## 👨‍💻 Author
-
-**Mohd Rayyan Lulaniya**
-
-Computer Engineering Student
-Full Stack Developer | MERN Stack Developer
-
-LinkedIn: https://linkedin.com/in/mohd-rayyan-lulaniya
-
-GitHub: https://github.com/Rayyan-101
-
----
-
 ## 📜 License
 
 This project is developed for educational, research, and portfolio purposes.
