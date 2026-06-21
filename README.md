@@ -90,7 +90,7 @@ MongoDB Database
 
 ### Database
 
-* MongoDB
+* MongoDB Atlas
 * Mongoose
 
 ### Tools & Deployment
