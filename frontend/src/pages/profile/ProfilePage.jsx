@@ -25,7 +25,6 @@ const KycStatusBadge = ({ status }) => {
 
 const ProfilePage = () => {
   const navigate  = useNavigate();
-  const role      = localStorage.getItem('userRole');
 
   const [profileData, setProfileData] = useState(null);
   const [kycData,     setKycData]     = useState(null);
@@ -33,16 +32,18 @@ const ProfilePage = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [profileRes, kycRes] = await Promise.all([
-        apiFetch(role === 'organizer' ? '/api/organizers/profile' : '/api/workers/profile'),
+      const [meRes, kycRes] = await Promise.all([
+        apiFetch('/api/auth/me'),
         apiFetch('/api/kyc/my'),
       ]);
-      if (profileRes.success) setProfileData(profileRes.data);
+      if (meRes.success) {
+        setProfileData(meRes.data || { user: meRes.user, profile: meRes.profile });
+      }
       if (kycRes.success)     setKycData(kycRes.data);
       setLoading(false);
     };
     load();
-  }, [role]);
+  }, []);
 
   const handleLogout = () => {
     ['token','userRole','userId','userName','userEmail'].forEach(k => localStorage.removeItem(k));
@@ -59,8 +60,13 @@ const ProfilePage = () => {
 
   const user    = profileData?.user;
   const profile = profileData?.profile;
+  const role = user?.role;
   const kycStatus = user?.kycStatus || 'pending';
   const submission = kycData?.submission;
+  const roleLabel = role === 'worker' ? 'Volunteer' : role === 'organizer' ? 'Organizer' : 'User';
+  const profileLabel = role === 'worker'
+    ? (profile?.currentLevel || 'Beginner')
+    : (profile?.organizationType || 'Organization');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -93,7 +99,7 @@ const ProfilePage = () => {
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-2xl font-bold mb-1">{user?.fullName}</h1>
               <p className="text-white/80 text-sm capitalize mb-3">
-                {role} • {role === 'worker' ? (profile?.currentLevel || 'beginner') : (profile?.organizationType || 'organizer')}
+                {roleLabel} | {profileLabel}
               </p>
               <KycStatusBadge status={kycStatus} />
             </div>
