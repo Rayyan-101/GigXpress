@@ -31,6 +31,29 @@ const SKILL_OPTIONS = [
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const Skeleton = ({ className }) => <div className={`bg-slate-100 animate-pulse rounded-xl ${className}`}/>;
 
+const isJobCompleted = (job) => {
+  if (job?.status === 'Completed') return true;
+  if (!job?.date) return false;
+
+  const eventDate = new Date(job.date);
+  const today = new Date();
+  eventDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return eventDate < today;
+};
+
+const paySuffix = (type) => {
+  if (type === 'per_day') return '/day';
+  if (type === 'per_hour' || type === 'hourly') return '/hr';
+  return '';
+};
+
+const newestApplicationFirst = (a, b) => {
+  const bTime = new Date(b?.appliedAt || b?.createdAt || 0).getTime();
+  const aTime = new Date(a?.appliedAt || a?.createdAt || 0).getTime();
+  return bTime - aTime;
+};
+
 const jobStatusConfig = {
   Active:    { cls: 'bg-emerald-50 text-emerald-700 border border-emerald-100', dot: 'bg-emerald-400' },
   Paused:    { cls: 'bg-amber-50 text-amber-700 border border-amber-100',       dot: 'bg-amber-400'   },
@@ -178,7 +201,7 @@ const JobModal = ({ onClose, onCreate, editJob=null, kycStatus }) => {
     duration:       editJob?.duration       || 'Full Day',
     slotsTotal:     editJob?.slotsTotal     || '',
     pay:            editJob?.pay?.amount    || '',
-    payType:        editJob?.pay?.type      || 'per_day',
+    payType:        editJob?.pay?.type === 'hourly' ? 'per_hour' : (editJob?.pay?.type || 'per_day'),
     category:       editJob?.category       || 'Other',
     description:    editJob?.description    || '',
     requirements:   editJob?.requirements   || '',
@@ -394,15 +417,15 @@ const JobModal = ({ onClose, onCreate, editJob=null, kycStatus }) => {
 };
 
 // ─── APPLICATIONS MODAL ───────────────────────────────────────────────────────
-const ApplicationsModal = ({ job, onClose, onRespond }) => {
-  const [applications, setApplications] = useState([]);
-  const [loading,      setLoading]      = useState(true);
+const ApplicationsModal = ({ job, focusedApplication=null, onClose, onRespond }) => {
+  const [applications, setApplications] = useState(() => focusedApplication ? [focusedApplication] : []);
+  const [loading,      setLoading]      = useState(!focusedApplication);
   const [responding,   setResponding]   = useState(null);
   const [ratingApp,    setRatingApp]    = useState(null);
   const [chatApp,      setChatApp]      = useState(null);
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const isGigDatePast = new Date(job.date) < today;
+  const isGigDatePast = job.date ? new Date(job.date) < today : false;
 
   const load = async () => {
     setLoading(true);
@@ -410,7 +433,7 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
     if (data.success) setApplications(data.data.applications);
     setLoading(false);
   };
-  useEffect(() => { load(); }, [job._id]);
+  useEffect(() => { load(); }, [job._id, focusedApplication?._id]);
 
   const handleRespond = async (id, status) => {
     setResponding(id);
@@ -428,9 +451,12 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
     Pending:   'bg-amber-50 text-amber-700 border border-amber-100',
   };
 
-  const pendingApps  = applications.filter(a=>a.status==='Pending');
-  const acceptedApps = applications.filter(a=>a.status==='Accepted'||a.status==='Completed');
-  const otherApps    = applications.filter(a=>a.status==='Rejected'||a.status==='Withdrawn');
+  const visibleApplications = focusedApplication
+    ? applications.filter(a=>a._id===focusedApplication._id)
+    : [...applications].sort(newestApplicationFirst);
+  const pendingApps  = visibleApplications.filter(a=>a.status==='Pending');
+  const acceptedApps = visibleApplications.filter(a=>a.status==='Accepted'||a.status==='Completed');
+  const otherApps    = visibleApplications.filter(a=>a.status==='Rejected'||a.status==='Withdrawn');
 
   return (
     <>
@@ -440,7 +466,7 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
           <div className="p-5 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur z-10">
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-lg font-bold text-slate-900">Applications</h3>
+                <h3 className="text-lg font-bold text-slate-900">{focusedApplication?'Review Application':'Applications'}</h3>
                 <p className="text-sm text-slate-500 mt-0.5 font-medium">
                   {job.title}
                   {isGigDatePast&&<span className="ml-2 text-blue-600 font-semibold text-xs">• Event Passed</span>}
@@ -449,12 +475,12 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
               <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-colors"><X size={20}/></button>
             </div>
             {/* Quick counts */}
-            {!loading && applications.length > 0 && (
+            {!loading && visibleApplications.length > 0 && (
               <div className="flex gap-3 mt-3">
                 {[
                   {label:'Pending', count:pendingApps.length, color:'bg-amber-100 text-amber-700'},
                   {label:'Accepted', count:acceptedApps.length, color:'bg-emerald-100 text-emerald-700'},
-                  {label:'Total', count:applications.length, color:'bg-slate-100 text-slate-700'},
+                  {label:'Total', count:visibleApplications.length, color:'bg-slate-100 text-slate-700'},
                 ].map(item=>(
                   <div key={item.label} className={`px-3 py-1.5 rounded-xl text-xs font-bold ${item.color}`}>{item.count} {item.label}</div>
                 ))}
@@ -465,7 +491,7 @@ const ApplicationsModal = ({ job, onClose, onRespond }) => {
           <div className="p-5">
             {loading ? (
               <div className="space-y-3">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-20"/>)}</div>
-            ) : applications.length===0 ? (
+            ) : visibleApplications.length===0 ? (
               <div className="text-center py-14">
                 <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4"><Users size={24} className="text-slate-400"/></div>
                 <p className="font-bold text-slate-700">No applications yet</p>
@@ -629,6 +655,7 @@ const OrganizerDashboard = () => {
   const [showJobModal,        setShowJobModal]        = useState(false);
   const [editingJob,          setEditingJob]          = useState(null);
   const [viewApplicationsJob, setViewApplicationsJob] = useState(null);
+  const [focusedApplication,  setFocusedApplication]  = useState(null);
   const [showKycModal,        setShowKycModal]        = useState(false);
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -720,9 +747,30 @@ const OrganizerDashboard = () => {
     if (data.success) { setJobs(prev=>prev.map(j=>j._id===job._id?{...j,status:newStatus}:j)); fetchDashboard(); }
   };
 
+  const handleReviewApplication = (app) => {
+    const populatedJob = typeof app.jobId === 'object' ? app.jobId : null;
+    const jobId = populatedJob?._id || app.jobId;
+    const loadedJob = jobs.find(j => String(j._id) === String(jobId));
+
+    if (loadedJob) {
+      setViewApplicationsJob(loadedJob);
+      setFocusedApplication(app);
+    } else if (populatedJob?._id) {
+      setViewApplicationsJob(populatedJob);
+      setFocusedApplication(app);
+    } else {
+      setActiveTab('applications');
+    }
+  };
+
+  const closeApplicationsModal = () => {
+    setViewApplicationsJob(null);
+    setFocusedApplication(null);
+  };
+
   const formatPay = (pay) => {
     if (!pay) return '—';
-    return `₹${pay.amount?.toLocaleString('en-IN')}${pay.type==='per_day'?'/day':pay.type==='per_hour'?'/hr':' fixed'}`;
+    return `₹${pay.amount?.toLocaleString('en-IN')}${paySuffix(pay.type) || ' fixed'}`;
   };
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -913,23 +961,40 @@ const OrganizerDashboard = () => {
                           <p className="text-sm text-slate-500 font-medium">No pending applications</p>
                           <p className="text-xs text-slate-400 mt-1">Post a job to start receiving applicants</p>
                         </div>
-                      : <div className="space-y-2">
-                          {dashboardData.recentApplications.map(app=>(
-                            <div key={app._id} className="flex items-center justify-between p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100/50 transition-colors">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <img src={app.workerId?.profilePicture||`https://i.pravatar.cc/150?u=${app.workerId?._id}`}
-                                  alt={app.workerId?.fullName} className="w-9 h-9 rounded-full object-cover shrink-0"/>
-                                <div className="min-w-0">
-                                  <p className="font-bold text-slate-900 text-sm truncate">{app.workerId?.fullName}</p>
-                                  <p className="text-xs text-slate-500 truncate">{app.jobId?.title}</p>
+                      : <div className="space-y-2.5">
+                          {[...dashboardData.recentApplications].sort(newestApplicationFirst).map(app=>{
+                            const worker = app.workerId || {};
+                            const profile = app.workerProfile;
+                            const applicantName = worker.fullName || worker.email || 'Applicant';
+                            const appliedDate = app.appliedAt ? new Date(app.appliedAt).toLocaleDateString('en-IN') : null;
+                            return (
+                              <div key={app._id} className="flex items-center justify-between gap-3 p-3.5 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100/60 transition-colors">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <img src={worker.profilePicture||`https://i.pravatar.cc/150?u=${worker._id||app._id}`}
+                                    alt={applicantName} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-white"/>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <p className="font-bold text-slate-900 text-sm truncate">{applicantName}</p>
+                                      {profile?.ratings?.average>0&&(
+                                        <span className="shrink-0 text-[11px] font-bold text-amber-600">{profile.ratings.average.toFixed(1)}★</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-600 truncate">{app.jobId?.title||'Untitled job'}</p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-slate-400">
+                                      {appliedDate&&<span>Applied {appliedDate}</span>}
+                                      {profile?.skills?.slice(0,2).map(skill=>(
+                                        <span key={skill} className="px-1.5 py-0.5 bg-white border border-amber-100 rounded-md text-slate-600">{skill}</span>
+                                      ))}
+                                    </div>
+                                  </div>
                                 </div>
+                                <button onClick={()=>handleReviewApplication(app)}
+                                  className="shrink-0 px-3.5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors">
+                                  Review
+                                </button>
                               </div>
-                              <button onClick={()=>{const job=jobs.find(j=>j._id===app.jobId?._id);if(job)setViewApplicationsJob(job);}}
-                                className="shrink-0 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors ml-2">
-                                Review
-                              </button>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>}
                 </div>
 
@@ -1009,7 +1074,7 @@ const OrganizerDashboard = () => {
                     </div>
                   : <div className="space-y-3">
                       {jobs.map(job=>{
-                        const isCompleted = new Date(job.date) < today;
+                        const isCompleted = isJobCompleted(job);
                         const slotsPercent = job.slotsTotal > 0 ? Math.round((job.slotsFilled/job.slotsTotal)*100) : 0;
                         return (
                           <div key={job._id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:shadow-md hover:border-indigo-100 transition-all duration-200">
@@ -1105,7 +1170,7 @@ const OrganizerDashboard = () => {
                     </div>
                   : <div className="space-y-2.5">
                       {jobs.map(job=>{
-                        const isCompleted = new Date(job.date)<today;
+                        const isCompleted = isJobCompleted(job);
                         const hasPending = job.applicantCount > 0;
                         return (
                           <div key={job._id}
@@ -1172,7 +1237,7 @@ const OrganizerDashboard = () => {
                                 <p className="font-semibold text-slate-700">{hire.jobId?.title}</p>
                                 <div className="flex gap-3">
                                   <span>{hire.jobId?.date?new Date(hire.jobId.date).toLocaleDateString('en-IN'):'—'}</span>
-                                  <span className="font-bold text-slate-900">{hire.jobId?.pay?`₹${hire.jobId.pay.amount?.toLocaleString('en-IN')}${hire.jobId.pay.type==='per_day'?'/day':hire.jobId.pay.type==='per_hour'?'/hr':''}`:''}</span>
+                                  <span className="font-bold text-slate-900">{hire.jobId?.pay?`₹${hire.jobId.pay.amount?.toLocaleString('en-IN')}${paySuffix(hire.jobId.pay.type)}`:''}</span>
                                 </div>
                               </div>
                             </div>
@@ -1205,7 +1270,7 @@ const OrganizerDashboard = () => {
                                     </td>
                                     <td className="px-4 py-3.5 text-slate-700 font-medium text-sm max-w-[160px] truncate">{hire.jobId?.title}</td>
                                     <td className="px-4 py-3.5 text-slate-500 text-xs">{hire.jobId?.date?new Date(hire.jobId.date).toLocaleDateString('en-IN'):'—'}</td>
-                                    <td className="px-4 py-3.5 font-bold text-slate-900 text-sm">{hire.jobId?.pay?`₹${hire.jobId.pay.amount?.toLocaleString('en-IN')}${hire.jobId.pay.type==='per_day'?'/day':hire.jobId.pay.type==='per_hour'?'/hr':''}`:''}</td>
+                                    <td className="px-4 py-3.5 font-bold text-slate-900 text-sm">{hire.jobId?.pay?`₹${hire.jobId.pay.amount?.toLocaleString('en-IN')}${paySuffix(hire.jobId.pay.type)}`:''}</td>
                                     <td className="px-4 py-3.5">
                                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${hire.status==='Completed'?'bg-blue-50 text-blue-700 border border-blue-100':'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>{hire.status}</span>
                                     </td>
@@ -1266,7 +1331,12 @@ const OrganizerDashboard = () => {
         <JobModal onClose={()=>{setShowJobModal(false);setEditingJob(null);}} onCreate={handleJobSaved} editJob={editingJob} kycStatus={kycStatus}/>
       )}
       {viewApplicationsJob&&(
-        <ApplicationsModal job={viewApplicationsJob} onClose={()=>setViewApplicationsJob(null)} onRespond={()=>{fetchDashboard();fetchJobs();}}/>
+        <ApplicationsModal
+          job={viewApplicationsJob}
+          focusedApplication={focusedApplication}
+          onClose={closeApplicationsModal}
+          onRespond={()=>{fetchDashboard();fetchJobs();}}
+        />
       )}
       {showKycModal&&(
         <KycRequiredModal kycStatus={kycStatus} onClose={()=>setShowKycModal(false)}/>
@@ -1276,3 +1346,4 @@ const OrganizerDashboard = () => {
 };
 
 export default OrganizerDashboard;
+

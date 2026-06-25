@@ -4,6 +4,7 @@ const WorkerProfile = require('../models/WorkerProfile');
 const OrganizerProfile = require('../models/OrganizerProfile');
 const User = require('../models/User');
 const { createConversationForApplication } = require('./chatController');
+const { isJobExpired } = require('../utils/jobLifecycle');
 
 
 exports.applyToJob = async (req, res) => {
@@ -75,15 +76,40 @@ exports.respondToApplication = async (req, res) => {
     const application = await Application.findOne({ _id: req.params.id, organizerId: req.user._id });
     if (!application) return res.status(404).json({ success: false, message: 'Application not found.' });
     if (application.status !== 'Pending') return res.status(400).json({ success: false, message: 'Can only respond to pending applications.' });
-    application.status = status;
-    application.respondedAt = new Date();
-    await application.save();
     if (status === 'Accepted') {
-      await Job.findByIdAndUpdate(application.jobId, { $inc: { slotsFilled: 1 } });
+      const job = await Job.findById(application.jobId);
+      if (!job) return res.status(404).json({ success: false, message: 'Job not found.' });
+      if (isJobExpired(job)) {
+        job.status = 'Completed';
+        await job.save();
+        return res.status(400).json({ success: false, message: 'This event is already completed.' });
+      }
+
+      const updatedJob = await Job.findOneAndUpdate(
+        {
+          _id: application.jobId,
+          status: 'Active',
+          $expr: { $lt: ['$slotsFilled', '$slotsTotal'] }
+        },
+        { $inc: { slotsFilled: 1 } },
+        { new: true }
+      );
+
+      if (!updatedJob) {
+        return res.status(400).json({ success: false, message: 'This event is not accepting more workers.' });
+      }
+
       await OrganizerProfile.findOneAndUpdate({ userId: req.user._id }, { $inc: { 'statistics.totalHires': 1 } });
+      application.status = status;
+      application.respondedAt = new Date();
       // Auto-create chat conversation so both parties can message immediately
       await createConversationForApplication(application);
     }
+    if (status === 'Rejected') {
+      application.status = status;
+      application.respondedAt = new Date();
+    }
+    await application.save();
     res.json({ success: true, message: `Application ${status.toLowerCase()}.`, data: { application } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -97,7 +123,15 @@ exports.withdrawApplication = async (req, res) => {
     if (application.status !== 'Pending') return res.status(400).json({ success: false, message: 'Can only withdraw pending applications.' });
     application.status = 'Withdrawn';
     await application.save();
-    await Job.findByIdAndUpdate(application.jobId, { $inc: { applicantCount: -1 } });
+    await Job.findByIdAndUpdate(application.jobId, [
+      {
+        $set: {
+          applicantCount: {
+            $max: [0, { $subtract: [{ $ifNull: ['$applicantCount', 0] }, 1] }]
+          }
+        }
+      }
+    ]);
     res.json({ success: true, message: 'Application withdrawn.' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

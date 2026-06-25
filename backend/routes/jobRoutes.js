@@ -9,7 +9,26 @@ const User = require('../models/User');
 const { protect } = require('../middleware/auth');
 const WorkerProfile = require('../models/WorkerProfile');
 const { notifyWorkersAboutNewJob } = require('../services/notificationService');
+const { getTodayBoundary, isJobExpired, syncExpiredJobs } = require('../utils/jobLifecycle');
+const { syncApplicantCounts } = require('../utils/jobMetrics');
 
+const normalizePay = (pay) => {
+  if (typeof pay !== 'object' || pay === null) {
+    return { amount: Number(pay), type: 'fixed' };
+  }
+
+  const typeMap = {
+    per_day: 'per_day',
+    per_hour: 'per_hour',
+    hourly: 'per_hour',
+    fixed: 'fixed'
+  };
+
+  return {
+    amount: Number(pay.amount),
+    type: typeMap[pay.type] || 'fixed'
+  };
+};
 // ─────────────────────────────────────────────
 // ✅ CREATE JOB (Advanced with KYC)
 // ─────────────────────────────────────────────
@@ -50,12 +69,7 @@ router.post('/', protect, async (req, res) => {
       location: typeof location === 'string'
         ? { city: location, address: location }
         : location,
-      pay: typeof pay === 'object'
-  ? {
-      amount: Number(pay.amount),
-      type: pay.type === 'hourly' ? 'hourly' : 'fixed' // ✅ SAFE
-    }
-  : { amount: Number(pay), type: 'fixed' },
+      pay: normalizePay(pay),
       slotsTotal: Number(slotsTotal),
       requiredSkills: requiredSkills || [],
       requirements: requirements || '',
@@ -93,10 +107,11 @@ router.post('/', protect, async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { city, skill, category, search, page = 1, limit = 20 } = req.query;
+    await syncExpiredJobs();
 
     const filter = {
-      // status: 'Active',
-      // date: { $gte: new Date() }
+      status: 'Active',
+      date: { $gte: getTodayBoundary() }
     };
 
     if (city) filter['location.city'] = new RegExp(city, 'i');
@@ -161,7 +176,13 @@ router.get('/', async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/my', protect, async (req, res) => {
   try {
-    const jobs = await Job.find({ organizerId: req.user._id })
+    const organizerFilter = { organizerId: req.user._id };
+    await Promise.all([
+      syncExpiredJobs(organizerFilter),
+      syncApplicantCounts(organizerFilter)
+    ]);
+
+    const jobs = await Job.find(organizerFilter)
       .sort({ createdAt: -1 });
 
     res.json({ success: true, data: { jobs } });
@@ -177,6 +198,8 @@ router.get('/my', protect, async (req, res) => {
 // ─────────────────────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
+    await syncExpiredJobs({ _id: req.params.id });
+
     const job = await Job.findById(req.params.id)
       .populate('organizerId', 'fullName profilePicture');
 
@@ -212,6 +235,13 @@ router.put('/:id', protect, async (req, res) => {
       });
     }
 
+    if (req.body.status === 'Active' && isJobExpired(job)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A completed event cannot be activated.'
+      });
+    }
+
     const allowedFields = [
       'title','description','category','date','time','duration',
       'location','pay','slotsTotal','requiredSkills','requirements','urgent','status'
@@ -219,7 +249,7 @@ router.put('/:id', protect, async (req, res) => {
 
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) {
-        job[field] = req.body[field];
+        job[field] = field === 'pay' ? normalizePay(req.body[field]) : req.body[field];
       }
     });
 
@@ -285,3 +315,4 @@ router.delete('/:id', protect, async (req, res) => {
 
 
 module.exports = router;
+

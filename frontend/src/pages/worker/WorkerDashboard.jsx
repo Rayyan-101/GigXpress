@@ -14,6 +14,29 @@ import { EVENT_CATEGORIES as CATEGORIES } from '../../constants/events';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+const isJobCompleted = (job) => {
+  if (job?.status === 'Completed') return true;
+  if (!job?.date) return false;
+
+  const eventDate = new Date(job.date);
+  const today = new Date();
+  eventDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  return eventDate < today;
+};
+
+const paySuffix = (type) => {
+  if (type === 'per_day') return '/day';
+  if (type === 'per_hour' || type === 'hourly') return '/hr';
+  return '';
+};
+
+const payLabel = (type) => {
+  if (type === 'per_day') return 'per day';
+  if (type === 'per_hour' || type === 'hourly') return 'per hour';
+  return 'fixed';
+};
+
 const apiFetch = async (path, options = {}) => {
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
@@ -201,7 +224,7 @@ const ApplyModal = ({ job, onClose, onSuccess, onKycBlock }) => {
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 grid grid-cols-3 gap-3 text-sm">
             <div><p className="text-xs text-slate-400 mb-0.5">Location</p><p className="font-semibold text-slate-700 flex items-center gap-1"><MapPin size={12} className="text-indigo-400"/>{job.location?.city}</p></div>
             <div><p className="text-xs text-slate-400 mb-0.5">Date</p><p className="font-semibold text-slate-700">{new Date(job.date).toLocaleDateString('en-IN')}</p></div>
-            <div><p className="text-xs text-slate-400 mb-0.5">Pay</p><p className="font-bold text-indigo-600">₹{job.pay?.amount?.toLocaleString('en-IN')}{job.pay?.type==='per_day'?'/day':job.pay?.type==='per_hour'?'/hr':''}</p></div>
+            <div><p className="text-xs text-slate-400 mb-0.5">Pay</p><p className="font-bold text-indigo-600">₹{job.pay?.amount?.toLocaleString('en-IN')}{paySuffix(job.pay?.type)}</p></div>
           </div>
           {error && <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex gap-2"><AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5"/><p className="text-sm text-red-700">{error}</p></div>}
           <div>
@@ -228,6 +251,7 @@ const ApplyModal = ({ job, onClose, onSuccess, onKycBlock }) => {
 const JobDetailModal = ({ job, onClose, onApply, appliedJobIds, kycStatus }) => {
   const alreadyApplied = appliedJobIds.has(job._id);
   const slotsLeft = job.slotsTotal - job.slotsFilled;
+  const isCompleted = isJobCompleted(job);
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100">
@@ -251,7 +275,7 @@ const JobDetailModal = ({ job, onClose, onApply, appliedJobIds, kycStatus }) => 
               { icon:MapPin,    label:'Location',    value:`${job.location?.city}${job.location?.address?' — '+job.location.address:''}` },
               { icon:Calendar,  label:'Date & Time', value:`${new Date(job.date).toLocaleDateString('en-IN')} at ${job.time}` },
               { icon:Clock,     label:'Duration',    value:job.duration },
-              { icon:DollarSign,label:'Pay',         value:`₹${job.pay?.amount?.toLocaleString('en-IN')} ${job.pay?.type==='per_day'?'per day':job.pay?.type==='per_hour'?'per hour':'fixed'}` },
+              { icon:DollarSign,label:'Pay',         value:`₹${job.pay?.amount?.toLocaleString('en-IN')} ${payLabel(job.pay?.type)}` },
               { icon:Briefcase, label:'Slots Left',  value:`${slotsLeft} of ${job.slotsTotal} remaining` },
               { icon:Award,     label:'Category',    value:job.category },
             ].map(({ icon:Icon, label, value }) => (
@@ -266,7 +290,8 @@ const JobDetailModal = ({ job, onClose, onApply, appliedJobIds, kycStatus }) => 
           {job.requirements&&<div><p className="text-sm font-semibold text-slate-700 mb-1.5">Special Requirements</p><p className="text-sm text-slate-600 leading-relaxed">{job.requirements}</p></div>}
         </div>
         <div className="p-5 border-t border-slate-100">
-          {alreadyApplied ? <div className="flex items-center gap-2 justify-center text-emerald-700 font-semibold py-1"><CheckCircle size={18}/><span>Already applied for this gig</span></div>
+          {isCompleted ? <div className="text-center text-blue-600 font-semibold py-1">This event is completed</div>
+          : alreadyApplied ? <div className="flex items-center gap-2 justify-center text-emerald-700 font-semibold py-1"><CheckCircle size={18}/><span>Already applied for this gig</span></div>
           : slotsLeft<=0 ? <div className="text-center text-slate-500 font-semibold py-1">All slots filled</div>
           : <button onClick={() => { onClose(); onApply(job); }} className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2"><Send size={16}/>Apply Now</button>}
         </div>
@@ -379,7 +404,7 @@ const WorkerDashboard = () => {
   };
   const handleRatingSuccess = () => { fetchMyApplications(); fetchDashboard(); };
 
-  const formatPay = (pay) => !pay ? '—' : `₹${pay.amount?.toLocaleString('en-IN')}${pay.type==='per_day'?'/day':pay.type==='per_hour'?'/hr':' fixed'}`;
+  const formatPay = (pay) => !pay ? '—' : `₹${pay.amount?.toLocaleString('en-IN')}${paySuffix(pay.type) || ' fixed'}`;
 
   // Level calculation — preserved exactly
   const currentLevelKey = dashboardData?.stats?.currentLevel || 'beginner';
@@ -597,6 +622,7 @@ const WorkerDashboard = () => {
                         const alreadyApplied = appliedJobIds.has(job._id);
                         const slotsLeft = job.slotsTotal - job.slotsFilled;
                         const isFull = slotsLeft <= 0;
+                        const isCompleted = isJobCompleted(job);
                         return (
                           <div key={job._id}
                             className={`bg-white rounded-2xl border transition-all duration-200 hover:shadow-md group ${
@@ -640,7 +666,11 @@ const WorkerDashboard = () => {
 
                               {/* Actions */}
                               <div className="flex items-center gap-2">
-                                {alreadyApplied
+                                {isCompleted
+                                  ? <div className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-sm font-semibold">
+                                      <CheckCircle size={14}/>Completed
+                                    </div>
+                                  : alreadyApplied
                                   ? <div className="flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-sm font-semibold">
                                       <CheckCircle size={14}/>Applied
                                     </div>
@@ -1053,4 +1083,5 @@ const WorkerDashboard = () => {
 };
 
 export default WorkerDashboard;
+
 

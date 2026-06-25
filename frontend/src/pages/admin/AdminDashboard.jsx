@@ -59,6 +59,12 @@ const RoleBadge = ({ role }) => {
   return <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${cls}`}>{role}</span>;
 };
 
+const paySuffix = (type) => {
+  if (type === 'per_day') return '/day';
+  if (type === 'per_hour' || type === 'hourly') return '/hr';
+  return '';
+};
+
 const StatusBadge = ({ active }) => (
   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
     {active ? 'Active' : 'Inactive'}
@@ -382,7 +388,7 @@ const JobDetailModal = ({ job, onClose, onDelete, onStatusChange }) => {
             {[
               { label: 'City',       value: job.location?.city },
               { label: 'Date',       value: fmtDate(job.date) },
-              { label: 'Pay',        value: `₹${job.pay?.amount?.toLocaleString('en-IN')} ${job.pay?.type === 'per_day' ? '/day' : job.pay?.type === 'per_hour' ? '/hr' : ''}` },
+              { label: 'Pay',        value: `₹${job.pay?.amount?.toLocaleString('en-IN')} ${paySuffix(job.pay?.type)}` },
               { label: 'Slots',      value: `${job.slotsFilled}/${job.slotsTotal} filled` },
               { label: 'Applicants', value: job.applicantCount },
               { label: 'Category',   value: job.category },
@@ -1038,7 +1044,7 @@ const AdminDashboard = () => {
                             <td className="px-4 py-3 font-semibold text-slate-800">
                               ₹{job.pay?.amount?.toLocaleString('en-IN')}
                               <span className="font-normal text-slate-400 text-xs">
-                                {job.pay?.type === 'per_day' ? '/day' : job.pay?.type === 'per_hour' ? '/hr' : ''}
+                                {paySuffix(job.pay?.type)}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-slate-600">{job.slotsFilled}/{job.slotsTotal}</td>
@@ -1226,3 +1232,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

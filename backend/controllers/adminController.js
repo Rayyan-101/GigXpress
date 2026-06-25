@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const Job = require('../models/Job');
+const { syncExpiredJobs } = require('../utils/jobLifecycle');
+const { syncApplicantCounts } = require('../utils/jobMetrics');
 const Application = require('../models/Application');
 const WorkerProfile = require('../models/WorkerProfile');
 const OrganizerProfile = require('../models/OrganizerProfile');
@@ -10,6 +12,11 @@ const OrganizerProfile = require('../models/OrganizerProfile');
 // ─────────────────────────────────────────────
 exports.getDashboard = async (req, res) => {
   try {
+    await Promise.all([
+      syncExpiredJobs(),
+      syncApplicantCounts()
+    ]);
+
     // 🔢 Counts
     const [
       totalUsers,
@@ -74,6 +81,8 @@ exports.getDashboard = async (req, res) => {
 // ─────────────────────────────────────────────
 exports.getAnalytics = async (req, res) => {
   try {
+    await syncExpiredJobs();
+
     const activeJobs = await Job.countDocuments({ status: 'Active' });
     const completedJobs = await Job.countDocuments({ status: 'Completed' });
 
@@ -235,6 +244,11 @@ exports.updateKyc = async (req, res) => {
 // ─────────────────────────────────────────────
 exports.getAllJobs = async (req, res) => {
   try {
+    await Promise.all([
+      syncExpiredJobs(),
+      syncApplicantCounts()
+    ]);
+
     const jobs = await Job.find()
       .populate('organizerId', 'fullName')
       .sort({ createdAt: -1 });

@@ -8,8 +8,15 @@ const OrganizerProfile = require('../models/OrganizerProfile');
 const User = require('../models/User');
 const appCtrl = require('../controllers/applicationController');
 const { createNotification } = require('../services/notificationService');
+const { isJobExpired } = require('../utils/jobLifecycle');
 
 const { protect, authorize } = require('../middleware/auth');
+
+const newestApplicationFirst = (a, b) => {
+  const bTime = new Date(b.appliedAt || b.createdAt || 0).getTime();
+  const aTime = new Date(a.appliedAt || a.createdAt || 0).getTime();
+  return bTime - aTime;
+};
 
 
 // ─────────────────────────────────────────────
@@ -48,20 +55,50 @@ router.patch('/:id/respond', protect, async (req, res) => {
       });
     }
 
-    application.status = status;
-    application.respondedAt = new Date();
-    await application.save();
-
     if (status === 'Accepted') {
-      await Job.findByIdAndUpdate(application.jobId, {
+      const job = await Job.findById(application.jobId);
+      if (!job) {
+        return res.status(404).json({
+          success: false,
+          message: 'Job not found.'
+        });
+      }
+
+      if (isJobExpired(job)) {
+        job.status = 'Completed';
+        await job.save();
+        return res.status(400).json({
+          success: false,
+          message: 'This event is already completed.'
+        });
+      }
+
+      const updatedJob = await Job.findOneAndUpdate({
+        _id: application.jobId,
+        status: 'Active',
+        $expr: { $lt: ['$slotsFilled', '$slotsTotal'] }
+      }, {
         $inc: { slotsFilled: 1 }
+      }, {
+        new: true
       });
+
+      if (!updatedJob) {
+        return res.status(400).json({
+          success: false,
+          message: 'This event is not accepting more workers.'
+        });
+      }
 
       await OrganizerProfile.findOneAndUpdate(
         { userId: req.user._id },
         { $inc: { 'statistics.totalHires': 1 } }
       );
     }
+
+    application.status = status;
+    application.respondedAt = new Date();
+    await application.save();
 
     const job = await Job.findById(application.jobId).select('title');
     await createNotification({
@@ -114,6 +151,18 @@ router.post('/:jobId', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Job not found.' });
     }
 
+    if (isJobExpired(job)) {
+      if (job.status !== 'Completed') {
+        job.status = 'Completed';
+        await job.save();
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: 'This event has already been completed.'
+      });
+    }
+
     if (job.status !== 'Active') {
       return res.status(400).json({
         success: false,
@@ -151,7 +200,10 @@ router.post('/:jobId', protect, async (req, res) => {
         application.coverNote = coverNote || '';
         application.appliedAt = new Date();
 
-        await application.save();
+        await Promise.all([
+          application.save(),
+          Job.findByIdAndUpdate(job._id, { $inc: { applicantCount: 1 } })
+        ]);
 
         await createNotification({
           io: req.app.get('io'),
@@ -280,7 +332,7 @@ router.get('/job/:jobId', protect, async (req, res) => {
     const enriched = applications.map(app => ({
       ...app.toObject(),
       workerProfile: profileMap[String(app.workerId?._id)] || null
-    }));
+    })).sort(newestApplicationFirst);
 
     res.json({
       success: true,
@@ -321,9 +373,15 @@ router.patch('/:id/withdraw', protect, async (req, res) => {
     application.status = 'Withdrawn';
     await application.save();
 
-    await Job.findByIdAndUpdate(application.jobId, {
-      $inc: { applicantCount: -1 }
-    });
+    await Job.findByIdAndUpdate(application.jobId, [
+      {
+        $set: {
+          applicantCount: {
+            $max: [0, { $subtract: [{ $ifNull: ['$applicantCount', 0] }, 1] }]
+          }
+        }
+      }
+    ]);
 
     res.json({
       success: true,
