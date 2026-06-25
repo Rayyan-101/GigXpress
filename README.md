@@ -19,6 +19,7 @@ The system supports multiple user roles and provides a secure, scalable solution
 * KYC verification for trusted job posting
 * Dashboard with analytics and job statistics
 
+
 ### 👷 Volunteer Features
 
 * Browse available gigs and events
