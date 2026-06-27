@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ChatWindow from '../../components/ChatWindow';
+import VolunteerWallet from '../payment/VolunteerWallet';
 import NotificationBell from '../../components/NotificationBell';
 import { StarDisplay, StarRatingInput } from '../../components/common/StarRating';
 import { EVENT_CATEGORIES as CATEGORIES } from '../../constants/events';
@@ -311,8 +312,26 @@ const WorkerDashboard = () => {
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
 
   const [dashboardData,  setDashboardData]  = useState(null);
+  const [walletData, setWalletData] = useState(null);
   const [availableJobs,  setAvailableJobs]  = useState([]);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
   const [myApplications, setMyApplications] = useState([]);
+
+  const [showWithdrawSuccess, setShowWithdrawSuccess] = useState(false);
+
+const [withdrawSuccessData, setWithdrawSuccessData] = useState(null);
+  
+  const [withdrawMethod, setWithdrawMethod] = useState("UPI");
+
+const [upiId, setUpiId] = useState("");
+
+const [accountHolder, setAccountHolder] = useState("");
+
+const [accountNumber, setAccountNumber] = useState("");
+
+const [ifsc, setIfsc] = useState("");
   const [appliedJobIds,  setAppliedJobIds]  = useState(new Set());
   const [kycStatus,      setKycStatus]      = useState(localStorage.getItem('kycStatus') || 'pending');
 
@@ -355,6 +374,15 @@ const WorkerDashboard = () => {
     if (kycRes.success) { setKycStatus(kycRes.data.kycStatus); localStorage.setItem('kycStatus', kycRes.data.kycStatus); }
     setLoadingDash(false);
   }, []);
+  
+  const fetchWallet = useCallback(async () => {
+  const data = await apiFetch("/api/payments/worker");
+
+    if (data.success) {
+      setWalletData(data.data);
+    }
+  }, []);
+
 
   const fetchJobs = useCallback(async (search='', category='') => {
     setLoadingJobs(true);
@@ -378,7 +406,7 @@ const WorkerDashboard = () => {
     setLoadingApps(false);
   }, []);
 
-  useEffect(() => { fetchDashboard(); fetchJobs(); fetchMyApplications(); }, []);
+  useEffect(() => { fetchDashboard(); fetchJobs(); fetchMyApplications(); fetchWallet(); }, []);
   useEffect(() => { const t = setTimeout(() => fetchJobs(searchQuery, filterCat), 400); return () => clearTimeout(t); }, [searchQuery, filterCat]);
   useEffect(() => { if (activeTab === 'applications') fetchMyApplications(); }, [activeTab]);
 
@@ -402,6 +430,84 @@ const WorkerDashboard = () => {
     else alert(data.message || 'Failed to withdraw.');
     setWithdrawingId(null);
   };
+
+  const handleWalletWithdraw = async () => {
+  if (!withdrawAmount || Number(withdrawAmount) <= 0) {
+    alert("Enter a valid amount.");
+    return;
+  }
+
+  if (withdrawMethod === "UPI" && !upiId.trim()) {
+  alert("Please enter your UPI ID.");
+  return;
+}
+
+if (
+  withdrawMethod === "Bank" &&
+  (!accountHolder.trim() ||
+    !accountNumber.trim() ||
+    !ifsc.trim())
+) {
+  alert("Please fill all bank details.");
+  return;
+}
+
+  setWithdrawLoading(true);
+
+  const payload = {
+  amount: Number(withdrawAmount),
+  method: withdrawMethod,
+};
+
+if (withdrawMethod === "UPI") {
+  payload.upiId = upiId;
+} else {
+  payload.accountHolder = accountHolder;
+  payload.accountNumber = accountNumber;
+  payload.ifsc = ifsc;
+}
+
+const data = await apiFetch("/api/payments/withdraw", {
+  method: "POST",
+  body: JSON.stringify(payload),
+});
+
+  setWithdrawLoading(false);
+
+  if (data.success) {
+
+  setWithdrawSuccessData({
+    amount: withdrawAmount,
+    transactionId: data.transactionId,
+    method: withdrawMethod,
+    upiId,
+    accountHolder,
+    date: new Date()
+  });
+
+  setShowWithdrawSuccess(true);
+
+  setWithdrawAmount("");
+
+  setUpiId("");
+
+  setAccountHolder("");
+
+  setAccountNumber("");
+
+  setIfsc("");
+
+  setWithdrawMethod("UPI");
+
+  setShowWithdrawModal(false);
+
+  fetchWallet();
+
+} else {
+    alert(data.message);
+  }
+    };
+
   const handleRatingSuccess = () => { fetchMyApplications(); fetchDashboard(); };
 
   const formatPay = (pay) => !pay ? '—' : `₹${pay.amount?.toLocaleString('en-IN')}${paySuffix(pay.type) || ' fixed'}`;
@@ -1022,18 +1128,47 @@ const WorkerDashboard = () => {
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-3 gap-3">
-                {[
-                  {label:'Total Earnings',  val:`₹${(dashboardData?.stats?.totalEarnings||0).toLocaleString('en-IN')}`,        icon:DollarSign,  color:'bg-emerald-500'},
-                  {label:'This Month',      val:`₹${(dashboardData?.stats?.currentMonthEarnings||0).toLocaleString('en-IN')}`,  icon:TrendingUp,  color:'bg-indigo-600'},
-                  {label:'Gigs Completed',  val:String(dashboardData?.stats?.totalGigsCompleted||0),                            icon:CheckCircle, color:'bg-blue-500'},
-                ].map((item,i)=>(
-                  <div key={i} className="bg-white rounded-2xl border border-slate-100 p-5 hover:shadow-sm transition-all">
-                    <div className={`w-10 h-10 ${item.color} rounded-xl flex items-center justify-center mb-3`}><item.icon size={20} className="text-white"/></div>
-                    <p className="text-xs text-slate-500 font-medium">{item.label}</p>
-                    <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{item.val}</p>
-                  </div>
-                ))}
+              <div className="grid sm:grid-cols-4 gap-3">
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Wallet Balance
+                  </p>
+
+                  <p className="text-2xl font-extrabold text-slate-900 mt-1">
+                    ₹{walletData?.wallet?.balance || 0}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Available to Withdraw
+                  </p>
+
+                  <p className="text-2xl font-extrabold text-green-600 mt-1">
+                    ₹{walletData?.wallet?.availableBalance || 0}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                  <p className="text-xs text-slate-500 font-medium">
+                    Pending Withdrawals
+                  </p>
+
+                  <p className="text-2xl font-extrabold text-orange-500 mt-1">
+                    ₹{walletData?.wallet?.pendingWithdrawal || 0}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-100 p-5">
+                  <button
+                      onClick={() => setShowWithdrawModal(true)}
+                      className="w-full h-full bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700"
+                    >
+                    Withdraw Money
+                  </button>
+                </div>
+
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-100 p-5">
@@ -1078,6 +1213,261 @@ const WorkerDashboard = () => {
           <ChatWindow applicationId={chatApp?._id} onClose={()=>setChatApp(null)}/>
         </div>
       )}
+      {showWithdrawModal && (
+     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+
+       <div className="bg-white rounded-2xl p-6 w-[400px]">
+
+      <h2 className="text-xl font-bold mb-5">
+        Withdraw Money
+      </h2>
+
+      <div className="mb-4">
+        <p className="text-sm text-gray-500 mb-2">
+          Available Balance
+        </p>
+
+        <p className="text-2xl font-bold text-green-600">
+          ₹{walletData?.wallet?.availableBalance || 0}
+        </p>
+      </div>
+
+      <div className="space-y-4">
+
+  <input
+    type="number"
+    placeholder="Enter Amount"
+    value={withdrawAmount}
+    onChange={(e) => setWithdrawAmount(e.target.value)}
+    className="w-full border rounded-xl p-3"
+  />
+
+  <div>
+
+    <p className="text-sm font-semibold mb-2">
+      Withdrawal Method
+    </p>
+
+    <div className="flex gap-4">
+
+      <label className="flex items-center gap-2 cursor-pointer">
+
+        <input
+          type="radio"
+          value="UPI"
+          checked={withdrawMethod === "UPI"}
+          onChange={() => setWithdrawMethod("UPI")}
+        />
+
+        UPI
+
+      </label>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+
+        <input
+          type="radio"
+          value="Bank"
+          checked={withdrawMethod === "Bank"}
+          onChange={() => setWithdrawMethod("Bank")}
+        />
+
+        Bank Account
+
+      </label>
+
+    </div>
+
+  </div>
+
+  {withdrawMethod === "UPI" && (
+
+    <input
+      type="text"
+      placeholder="Enter UPI ID"
+      value={upiId}
+      onChange={(e) => setUpiId(e.target.value)}
+      className="w-full border rounded-xl p-3"
+    />
+
+  )}
+
+  {withdrawMethod === "Bank" && (
+
+    <div className="space-y-3">
+
+      <input
+        type="text"
+        placeholder="Account Holder Name"
+        value={accountHolder}
+        onChange={(e) => setAccountHolder(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      />
+
+      <input
+        type="text"
+        placeholder="Account Number"
+        value={accountNumber}
+        onChange={(e) => setAccountNumber(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      />
+
+      <input
+        type="text"
+        placeholder="IFSC Code"
+        value={ifsc}
+        onChange={(e) => setIfsc(e.target.value)}
+        className="w-full border rounded-xl p-3"
+      />
+
+    </div>
+
+  )}
+
+</div>
+
+      <div className="flex justify-end gap-3 mt-4">
+
+        <button
+          onClick={() => setShowWithdrawModal(false)}
+          className="px-4 py-2 border rounded-xl"
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={handleWalletWithdraw}
+          disabled={withdrawLoading}
+          className="px-5 py-2 bg-indigo-600 text-white rounded-xl"
+        >
+          {withdrawLoading ? "Submitting..." : "Withdraw"}
+        </button>
+
+         </div>
+
+        </div>
+
+      </div>
+    )}
+    {showWithdrawSuccess && (
+
+<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+
+<div className="bg-white rounded-3xl p-8 w-[420px] text-center">
+
+<div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+
+<div className="text-4xl">
+✅
+</div>
+
+</div>
+
+<h2 className="text-2xl font-bold">
+
+Withdrawal Successful
+
+</h2>
+
+<p className="text-4xl font-bold text-green-600 mt-4">
+
+₹{withdrawSuccessData?.amount}
+
+</p>
+
+<div className="mt-6 space-y-3 text-left bg-gray-50 rounded-xl p-4">
+
+<div className="flex justify-between">
+
+<span className="text-gray-500">
+Method
+</span>
+
+<span className="font-semibold">
+{withdrawSuccessData?.method}
+</span>
+
+</div>
+
+{withdrawSuccessData?.method==="UPI" && (
+
+<div className="flex justify-between">
+
+<span className="text-gray-500">
+UPI
+</span>
+
+<span className="font-semibold">
+{withdrawSuccessData?.upiId}
+</span>
+
+</div>
+
+)}
+
+{withdrawSuccessData?.method==="Bank" && (
+
+<div className="flex justify-between">
+
+<span className="text-gray-500">
+Account
+</span>
+
+<span className="font-semibold">
+{withdrawSuccessData?.accountHolder}
+</span>
+
+</div>
+
+)}
+
+<div className="flex justify-between">
+
+<span className="text-gray-500">
+Transaction ID
+</span>
+
+<span className="font-semibold text-sm">
+
+{withdrawSuccessData?.transactionId}
+
+</span>
+
+</div>
+
+<div className="flex justify-between">
+
+<span className="text-gray-500">
+Date
+</span>
+
+<span className="font-semibold">
+
+{withdrawSuccessData?.date?.toLocaleString()}
+
+</span>
+
+</div>
+
+</div>
+
+<button
+
+onClick={() => setShowWithdrawSuccess(false)}
+
+className="mt-8 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold"
+
+>
+
+Done
+
+</button>
+
+</div>
+
+</div>
+
+)}
     </div>
   );
 };

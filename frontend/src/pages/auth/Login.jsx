@@ -69,6 +69,10 @@ const Login = () => {
       const data = await res.json();
       if (data.success) {
         // TODO: Replace with AuthContext → setUser(data.data.user)
+        localStorage.setItem("userRole", data.data.user.role);
+        localStorage.setItem("userId", data.data.user._id);
+        localStorage.setItem("userEmail", data.data.user.email);
+        localStorage.setItem("userName", data.data.user.fullName);
         sessionStorage.setItem('userName', data.data.user.fullName);
         navigate(ROLE_ROUTES[data.data.user.role] || '/');
       } else {
