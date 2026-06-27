@@ -596,12 +596,12 @@ const data = await apiFetch("/api/payments/withdraw", {
         </div>
       </nav>
 
-      <div className="flex">
+      <div className="flex h-[calc(100vh-72px)] overflow-hidden">
         {/* Mobile overlay */}
         {sidebarOpen && <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)}/>}
 
         {/* ── SIDEBAR ─────────────────────────────────────────────────────── */}
-        <aside className={`${sidebarOpen?'translate-x-0':'-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 w-60 bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none`}>
+        <aside className={`${sidebarOpen?'translate-x-0':'-translate-x-full'} lg:translate-x-0 fixed lg:sticky inset-y-0 left-0 z-30 w-60 bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none`}>
           <div className="p-4 space-y-4 pt-4">
             {/* Level card */}
             {loadingDash
@@ -656,7 +656,8 @@ const data = await apiFetch("/api/payments/withdraw", {
         </aside>
 
         {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-        <main className="flex-1 p-4 sm:p-6 min-w-0">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto
+h-[calc(100vh-72px)] min-w-0">
 
           {/* Error banner */}
           {errorMsg && (
@@ -1032,7 +1033,7 @@ const data = await apiFetch("/api/payments/withdraw", {
           })()}
 
           {activeTab === "messages" && (
-            <div className="space-y-3">
+            <div className="flex flex-col h-full">
 
                   <div>
 

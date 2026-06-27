@@ -5,6 +5,7 @@ import {
   AlertCircle, RefreshCw, User
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import '../App.css'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173';
 
@@ -625,7 +626,7 @@ useEffect(() => {
               )}
 
               {/* Messages area */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1 bg-gray-50">
+              <div className="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-1 bg-gray-50">
                 {/* Load more */}
                 {hasMore && (
                   <div className="flex justify-center py-2">

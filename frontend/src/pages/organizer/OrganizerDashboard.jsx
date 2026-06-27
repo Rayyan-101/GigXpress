@@ -1239,13 +1239,13 @@ const OrganizerDashboard = () => {
         </div>
       </nav>
 
-      <div className="flex">
+      <div className="flex h-[calc(100vh-73px)]">
         {sidebarOpen && (
           <div className="fixed inset-0 bg-black/30 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
         {/* ── SIDEBAR ──────────────────────────────────────────────────────── */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 w-60 bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky inset-y-0 left-0 z-30 w-60 bg-white border-r border-slate-100 transition-transform duration-300 ease-in-out shadow-xl lg:shadow-none`}>
           <div className="p-4 space-y-4 pt-4">
             <button onClick={handleCreateJobClick}
               className="w-full px-4 py-3 bg-indigo-600 text-white rounded-2xl font-bold text-sm hover:bg-indigo-700 transition-colors shadow-md shadow-indigo-200 flex items-center justify-center gap-2">
@@ -1293,7 +1293,7 @@ const OrganizerDashboard = () => {
         </aside>
 
         {/* ── MAIN CONTENT ─────────────────────────────────────────────────── */}
-        <main className="flex-1 p-4 sm:p-6 min-w-0">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto h-[calc(100vh-72px)] min-w-0">
 
           {errorMsg && (
             <div className="mb-4 bg-red-50 border border-red-100 rounded-xl p-3.5 flex gap-3 items-center">
@@ -1729,7 +1729,7 @@ const OrganizerDashboard = () => {
 
                   {activeTab === "messages" && (
 
-                  <div className="space-y-2">
+                  <div className="flex flex-col h-full">
 
                   <div>
 
