@@ -9,6 +9,7 @@ const User = require('../models/User');
 const appCtrl = require('../controllers/applicationController');
 const { createNotification } = require('../services/notificationService');
 const { isJobExpired } = require('../utils/jobLifecycle');
+const Payment = require('../models/Payment');
 
 const { protect, authorize } = require('../middleware/auth');
 
@@ -329,10 +330,23 @@ router.get('/job/:jobId', protect, async (req, res) => {
       profileMap[String(p.userId)] = p;
     });
 
+    const appIds = applications.map(a => a._id);
+    const payments = await Payment.find({
+      applicationId: { $in: appIds }
+    });
+
+    const paymentMap = {};
+
+    payments.forEach(payment => {
+      paymentMap[String(payment.applicationId)] = payment;
+    });
+
     const enriched = applications.map(app => ({
       ...app.toObject(),
-      workerProfile: profileMap[String(app.workerId?._id)] || null
-    })).sort(newestApplicationFirst);
+      workerProfile: profileMap[String(app.workerId?._id)] || null,
+      payment: paymentMap[String(app._id)] || null
+    }))
+    .sort(newestApplicationFirst);
 
     res.json({
       success: true,

@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const http       = require('http');
 const { initSocket } = require('./sockets/socket');
+const { startCronJobs } = require('./services/cronService')
 // Load environment variables
 dotenv.config();
 
@@ -69,6 +70,8 @@ app.use('/api/kyc',         require('./routes/kycRoutes'));
 app.use('/api/chat',         require('./routes/chatRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 
+app.use('/api/payments',     require('./routes/paymentRoutes'));
+
 
 // Health check route
 app.get('/api/health', (req, res) => {
@@ -102,5 +105,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔌 Socket.IO enabled`);
+  console.log(`💳 Razorpay payments enabled`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  startCronJobs();
 });

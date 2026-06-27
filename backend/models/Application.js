@@ -19,7 +19,7 @@ const applicationSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Pending', 'Accepted', 'Rejected', 'Withdrawn', 'Completed'],
+      enum: ['Pending', 'Accepted', 'Rejected', 'Withdrawn', 'Completed', 'Cancelled'],
       default: 'Pending'
     },
     coverNote: {

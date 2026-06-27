@@ -62,7 +62,27 @@ exports.getJobApplications = async (req, res) => {
     const profiles = await WorkerProfile.find({ userId: { $in: workerIds } });
     const profileMap = {};
     profiles.forEach(p => { profileMap[String(p.userId)] = p; });
-    const enriched = applications.map(app => ({ ...app.toObject(), workerProfile: profileMap[String(app.workerId?._id)] || null }));
+
+    // Attach payment doc to each application so frontend can show payment status + release button
+    const Payment = require('../models/Payment');
+    const appIds = applications.map(a => a._id);
+    const payments = await Payment.find({ applicationId: { $in: appIds } });
+    const paymentMap = {};
+    payments.forEach(p => { paymentMap[String(p.applicationId)] = p; });
+    console.log("Payment Map Keys:", Object.keys(paymentMap));
+    console.log("Application IDs:", applications.map(a => String(a._id)));
+
+
+    const enriched = applications.map(app => ({
+      ...app.toObject(),
+      workerProfile: profileMap[String(app.workerId?._id)] || null,
+      payment: paymentMap[String(app._id)] || null
+    }));
+    console.log(
+  "Enriched Applications:",
+  JSON.stringify(enriched, null, 2)
+);
+    
     res.json({ success: true, data: { applications: enriched, job } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

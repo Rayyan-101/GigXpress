@@ -1,6 +1,7 @@
 const WorkerProfile = require('../models/WorkerProfile');
 const User = require('../models/User');
 const Application = require('../models/Application');
+const Payment = require("../models/Payment");
 
 // ─── GET /api/workers/profile ─────────────────────────────────────────────────
 exports.getProfile = async (req, res) => {
@@ -41,43 +42,100 @@ exports.updateProfile = async (req, res) => {
 };
 
 // ─── GET /api/workers/dashboard — Full stats for overview ─────────────────────
+// ─── GET /api/workers/dashboard — Full stats for overview ─────────────────────
 exports.getDashboard = async (req, res) => {
   try {
-    const [user, profile, completedGigs, upcomingGigs] = await Promise.all([
+    const [
+      user,
+      profile,
+      completedGigs,
+      upcomingGigs,
+      completedCount,
+      releasedPayments,
+      totalApplied
+    ] = await Promise.all([
       User.findById(req.user._id),
+
       WorkerProfile.findOne({ userId: req.user._id }),
-      Application.find({ workerId: req.user._id, status: 'Completed' })
+
+      Application.find({
+        workerId: req.user._id,
+        status: 'Completed'
+      })
         .populate('jobId', 'title date pay location')
         .populate('organizerId', 'fullName')
         .sort({ respondedAt: -1 })
         .limit(10),
-      Application.find({ workerId: req.user._id, status: 'Accepted' })
+
+      Application.find({
+        workerId: req.user._id,
+        status: 'Accepted'
+      })
         .populate('jobId', 'title date time pay location duration')
         .populate('organizerId', 'fullName')
         .sort({ 'jobId.date': 1 })
-        .limit(5)
+        .limit(5),
+
+      Application.countDocuments({
+        workerId: req.user._id,
+        status: 'Completed'
+      }),
+
+      Payment.find({
+        workerId: req.user._id,
+        status: 'Released'
+      }),
+
+      Application.countDocuments({
+        workerId: req.user._id
+      })
     ]);
+
+    // Calculate total earnings
+    const totalEarnings = releasedPayments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+
+    // Calculate this month's earnings
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const currentMonthEarnings = releasedPayments
+      .filter(payment =>
+        payment.releasedAt &&
+        new Date(payment.releasedAt) >= startOfMonth
+      )
+      .reduce((sum, payment) => sum + payment.amount, 0);
 
     res.json({
       success: true,
       data: {
         user,
         profile,
+
         stats: {
-          totalEarnings:        profile?.statistics?.totalEarnings || 0,
-          currentMonthEarnings: profile?.statistics?.currentMonthEarnings || 0,
-          totalGigsCompleted:   profile?.statistics?.totalGigsCompleted || 0,
-          totalGigsApplied:     profile?.statistics?.totalGigsApplied || 0,
-          reliabilityScore:     profile?.reliabilityScore || 100,
-          averageRating:        profile?.ratings?.average || 0,
-          badges:               profile?.badges || [],
-          currentLevel:         profile?.currentLevel || 'beginner'
+          totalEarnings,
+          currentMonthEarnings,
+          totalGigsCompleted: completedCount,
+          totalGigsApplied: totalApplied,
+          reliabilityScore: profile?.reliabilityScore || 100,
+          averageRating: profile?.ratings?.average || 0,
+          badges: profile?.badges || [],
+          currentLevel: profile?.currentLevel || 'beginner'
         },
+
         completedGigs,
         upcomingGigs
       }
     });
+
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("Worker Dashboard Error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 };

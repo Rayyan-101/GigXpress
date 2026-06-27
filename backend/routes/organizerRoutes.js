@@ -3,6 +3,8 @@ const router = express.Router();
 const Job = require('../models/Job');
 const Application = require('../models/Application');
 const WorkerProfile = require('../models/WorkerProfile');
+const User = require('../models/User');
+const OrganizerProfile = require('../models/OrganizerProfile');
 const { protect } = require('../middleware/auth');
 const { syncExpiredJobs } = require('../utils/jobLifecycle');
 
@@ -13,6 +15,86 @@ const newestApplicationFirst = (a, b) => {
 };
 
 
+// ✅ ORGANIZER PROFILE
+router.get('/profile', protect, async (req, res) => {
+  try {
+    console.log("User ID:", req.user._id);
+
+    const user = await User.findById(req.user._id);
+
+    const profile = await OrganizerProfile.findOne({
+      userId: req.user._id
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Organizer profile not found.'
+      });
+    }
+
+    // Total jobs
+    const totalJobsPosted = await Job.countDocuments({
+      organizerId: req.user._id
+    });
+
+    // Active jobs
+    const activeJobs = await Job.countDocuments({
+      organizerId: req.user._id,
+      status: 'Active'
+    });
+
+    // Completed jobs
+    const completedJobs = await Job.countDocuments({
+      organizerId: req.user._id,
+      status: 'Completed'
+    });
+
+    // Find organizer jobs
+    const jobs = await Job.find({
+      organizerId: req.user._id
+    }).select('_id');
+
+    // Total hires
+    const totalHires = await Application.countDocuments({
+      jobId: {
+        $in: jobs.map(job => job._id)
+      },
+      status: {
+        $in: ['Accepted', 'Completed']
+      }
+    });
+
+    // Update statistics dynamically
+    profile.statistics.totalJobsPosted = totalJobsPosted;
+    profile.statistics.activeJobs = activeJobs;
+    profile.statistics.completedJobs = completedJobs;
+    profile.statistics.totalHires = totalHires;
+
+    await profile.save();
+
+    res.json({
+      success: true,
+      data: {
+        user,
+        profile
+      }
+    });
+
+  } catch (error) {
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+});
+
+
+
 // ✅ DASHBOARD
 router.get('/dashboard', protect, async (req, res) => {
   try {
@@ -20,7 +102,7 @@ router.get('/dashboard', protect, async (req, res) => {
 
     const jobs = await Job.find({ organizerId: req.user._id });
 
-    const activeJobs = jobs.filter(j => j.status === 'Active').length;
+    const activeJobs = jobs.filter(job => job.status === 'Active').length;
     const totalJobsPosted = jobs.length;
 
     const applications = await Application.find({
@@ -46,8 +128,9 @@ router.get('/dashboard', protect, async (req, res) => {
       .sort(newestApplicationFirst)
       .slice(0, 5);
 
+
     const totalHires = applications.filter(
-      a => a.status === 'Accepted' || a.status === 'Completed'
+      app => app.status === 'Accepted' || app.status === 'Completed'
     ).length;
 
     res.json({
@@ -59,16 +142,19 @@ router.get('/dashboard', protect, async (req, res) => {
           totalHires,
           escrowBalance: 0
         },
-        recentApplications
+        recentApplications,
+        pendingApplicationsCount: recentApplications.length
       }
     });
 
   } catch (error) {
-    console.error('ORGANIZER DASHBOARD ERROR:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
   }
 });
-
 
 // ✅ HIRED WORKERS
 router.get('/hired', protect, async (req, res) => {
