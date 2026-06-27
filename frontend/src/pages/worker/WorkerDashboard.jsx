@@ -349,8 +349,12 @@ const [ifsc, setIfsc] = useState("");
   const [chatApp,       setChatApp]       = useState(null);
   const [showChatWindow,setShowChatWindow]= useState(false);
 
+  const [selectedApplication, setSelectedApplication] = useState(null);
+
   const userName  = localStorage.getItem('userName')  || 'Volunteer';
   const userEmail = localStorage.getItem('userEmail') || '';
+
+
 
   // Inject font
   useEffect(() => {
@@ -536,6 +540,7 @@ const data = await apiFetch("/api/payments/withdraw", {
     { id:'applications', label:'My Applications', icon:Clock,       badge:acceptedCount>0?acceptedCount:null },
     { id:'scheduled',    label:'Upcoming',        icon:Calendar,    badge:null },
     { id:'completed',    label:'Completed',       icon:CheckCircle, badge:null },
+    { id: "messages",    label: "Messages",       icon: MessageSquare, badge: null},
     { id:'portfolio',    label:'Portfolio',       icon:Award,       badge:null },
     { id:'earnings',     label:'Earnings',        icon:DollarSign,  badge:null },
   ];
@@ -882,9 +887,12 @@ const data = await apiFetch("/api/payments/withdraw", {
                                   </button>
                                 )}
                                 {(app.status==='Accepted'||app.status==='Completed')&&(
-                                  <button onClick={()=>setChatApp(app)}
+                                  <button onClick={()=>{
+                                              setSelectedApplication(app);
+                                              setActiveTab("messages");
+                                          }}
                                     className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-colors flex items-center gap-1.5">
-                                    <MessageSquare size={12}/>Message
+                                    <MessageSquare size={13}/>Message
                                   </button>
                                 )}
                               </div>
@@ -1022,6 +1030,28 @@ const data = await apiFetch("/api/payments/withdraw", {
               </div>
             );
           })()}
+
+          {activeTab === "messages" && (
+            <div className="space-y-3">
+
+                  <div>
+
+                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  Messages
+                  </h1>
+
+                  <p className="text-slate-500 mt-1">
+                  Chat with Organizers who hired you.
+                  </p>
+
+                  </div>
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-[78vh]">
+    <ChatWindow
+        selectedConversation={selectedApplication}
+        embeddedMode/>
+    </div>
+    </div>
+)}
 
           {/* ══ PORTFOLIO ══ */}
           {activeTab==='portfolio' && (
@@ -1208,11 +1238,11 @@ const data = await apiFetch("/api/payments/withdraw", {
       {previewJob&&<JobDetailModal job={previewJob} onClose={()=>setPreviewJob(null)} onApply={handleApplyClick} appliedJobIds={appliedJobIds} kycStatus={kycStatus}/>}
       {showKycModal&&<KycRequiredModal kycStatus={kycStatus} onClose={()=>setShowKycModal(false)}/>}
       {ratingApp&&<RateOrganizerModal application={ratingApp} onClose={()=>setRatingApp(null)} onSuccess={handleRatingSuccess}/>}
-      {chatApp&&(
+      {/* {chatApp&&(
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <ChatWindow applicationId={chatApp?._id} onClose={()=>setChatApp(null)}/>
         </div>
-      )}
+      )} */}
       {showWithdrawModal && (
      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
 
@@ -1455,20 +1485,18 @@ Date
 
 onClick={() => setShowWithdrawSuccess(false)}
 
-className="mt-8 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold"
+className="mt-8 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold" >
 
->
+      Done
 
-Done
+      </button>
 
-</button>
+      </div>
 
-</div>
+      </div>
 
-</div>
-
-)}
-    </div>
+      )}
+          </div>
   );
 };
 

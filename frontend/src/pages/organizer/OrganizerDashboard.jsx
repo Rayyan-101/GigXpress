@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import ChatWindow from '../../components/ChatWindow';
 import OrganizerPayments from '../payment/OrganizerPayments';
+import OrganizerMessages from "../chat/OrganizerMessages";
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -524,12 +525,12 @@ const JobModal = ({ onClose, onCreate, editJob = null, kycStatus }) => {
 };
 
 // ─── APPLICATIONS MODAL ───────────────────────────────────────────────────────
-const ApplicationsModal = ({ job, focusedApplication=null, onClose, onRespond }) => {
+const ApplicationsModal = ({ job, focusedApplication=null, onClose, onRespond, onOpenChat }) => {
   const [applications, setApplications] = useState(() => focusedApplication ? [focusedApplication] : []);
   const [loading,      setLoading]      = useState(!focusedApplication);
   const [responding,   setResponding]   = useState(null);
   const [ratingApp,    setRatingApp]    = useState(null);
-  const [chatApp,      setChatApp]      = useState(null);
+  // const [chatApp,      setChatApp]      = useState(null);
   const [payError,     setPayError]     = useState('');
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -920,7 +921,7 @@ const ApplicationsModal = ({ job, focusedApplication=null, onClose, onRespond })
 
                                 {/* Chat */}
                                 <button
-                                  onClick={() => setChatApp(app)}
+                                  onClick={() => onOpenChat(app)}
                                   className="px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-colors flex items-center gap-1.5"
                                 >
                                   <MessageSquare size={13} /> Chat
@@ -980,13 +981,13 @@ const ApplicationsModal = ({ job, focusedApplication=null, onClose, onRespond })
           onSuccess={handleRatingSuccess}
         />
       )}
-      {chatApp && (
+      {/* {chatApp && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-2xl h-[85vh]">
             <ChatWindow applicationId={chatApp._id} onClose={() => setChatApp(null)} embeddedMode />
           </div>
         </div>
-      )}
+      )} */}
     </>
   );
 };
@@ -998,6 +999,7 @@ const OrganizerDashboard = () => {
   const [activeTab,           setActiveTab]           = useState('overview');
   const [sidebarOpen,         setSidebarOpen]         = useState(false);
   const [showJobModal,        setShowJobModal]        = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [editingJob,          setEditingJob]          = useState(null);
   const [viewApplicationsJob, setViewApplicationsJob] = useState(null);
   const [focusedApplication,  setFocusedApplication]  = useState(null);
@@ -1143,9 +1145,17 @@ const OrganizerDashboard = () => {
     { id: 'overview',     label: 'Overview',      icon: BarChart3,  badge: null },
     { id: 'jobs',         label: 'My Jobs',       icon: Briefcase,  badge: null },
     { id: 'applications', label: 'Applications',  icon: Users,      badge: pendingAppsCount > 0 ? pendingAppsCount : null },
+    {id: "messages", label: "Messages", icon: MessageSquare,badge: null,},
     { id: 'hired',        label: 'Hired Workers', icon: UserCheck,  badge: null },
     { id: 'payments',     label: 'Payments',      icon: DollarSign, badge: null },
   ];
+
+  const openConversation = (application) => {
+  setSelectedConversation(application);
+  setViewApplicationsJob(null);
+  setFocusedApplication(null);
+  setActiveTab("messages");
+};
 
   return (
     <div style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
@@ -1194,11 +1204,11 @@ const OrganizerDashboard = () => {
               </button>
 
               {/* Messages */}
-              <button onClick={() => setShowChatPanel(true)}
+              {/* <button onClick={() => setShowChatPanel(true)}
                 className="relative p-2 hover:bg-slate-100 rounded-xl text-slate-500 hover:text-indigo-600 transition-colors"
                 title="Messages">
                 <MessageSquare size={19} />
-              </button>
+              </button> */}
 
               {/* Bell */}
               <button className="relative p-2 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
@@ -1715,6 +1725,33 @@ const OrganizerDashboard = () => {
             </div>
           )}
 
+          {/* ═════════════ MESSAGES ═════════════ */}
+
+                  {activeTab === "messages" && (
+
+                  <div className="space-y-2">
+
+                  <div>
+
+                  <h1 className="text-2xl font-extrabold text-slate-900">
+                  Messages
+                  </h1>
+
+                  <p className="text-slate-500 mt-1">
+                  Chat with workers you've hired.
+                  </p>
+
+                  </div>
+
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-[78vh]">
+
+                  <ChatWindow embeddedMode selectedConversation={selectedConversation} />
+
+                  </div>
+
+                  </div>
+
+                  )}
           {/* ══ PAYMENTS — full OrganizerPayments component ══ */}
           {activeTab === 'payments' && <OrganizerPayments />}
 
@@ -1736,6 +1773,7 @@ const OrganizerDashboard = () => {
           focusedApplication={focusedApplication}
           onClose={closeApplicationsModal}
           onRespond={()=>{fetchDashboard();fetchJobs();}}
+          onOpenChat={openConversation}
         />
       )}
       {showKycModal && (
@@ -1743,13 +1781,13 @@ const OrganizerDashboard = () => {
       )}
 
       {/* Global chat panel (opened from navbar MessageSquare icon) */}
-      {showChatPanel && (
+      {/* {showChatPanel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-4xl h-[88vh]">
             <ChatWindow onClose={() => setShowChatPanel(false)} embeddedMode />
           </div>
         </div>
-      )}
+      )} */}
     </div>
   );
 };

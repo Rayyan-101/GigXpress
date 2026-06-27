@@ -147,7 +147,7 @@ const TypingIndicator = ({ typingUsers, currentUserId }) => {
 };
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const ChatWindow = ({ applicationId = null, onClose = null, embeddedMode = false }) => {
+const ChatWindow = ({ applicationId = null, onClose = null, embeddedMode = false , selectedConversation}) => {
   const myUserId   = localStorage.getItem('userId');
   const myRole     = localStorage.getItem('userRole');
   const myUserName = localStorage.getItem('userName') || 'You';
@@ -280,6 +280,51 @@ const ChatWindow = ({ applicationId = null, onClose = null, embeddedMode = false
     };
   }, []);
 
+  const openedConversationRef = useRef(null);
+    // ── Open a conversation ──────────────────────────────────────────────────────
+  const openConversation = useCallback(async (conv) => {
+
+    if (openedConversationRef.current === conv._id) return;
+
+   openedConversationRef.current = conv._id;
+    // Leave previous room
+    if (selectedConvId === conv._id) {
+    return;
+}
+    if (selectedConvId && socketRef.current) {
+      socketRef.current.emit('conversation:leave', { conversationId: selectedConvId });
+      socketRef.current.emit('typing:stop', { conversationId: selectedConvId });
+    }
+
+    setSelectedConvId(conv._id);
+    setSelectedConv(conv);
+    setMessages([]);
+    setMsgPage(1);
+    setTypingUsers([]);
+    setShowConvList(false);
+
+    // Join new room
+    if (socketRef.current) {
+      socketRef.current.emit('conversation:join', { conversationId: conv._id });
+    }
+    console.log("Opening conversation:", conv);
+    console.log("Conversation ID:", conv._id);
+    // Load messages
+    setLoadingMsgs(true);
+    const data = await apiFetch(`/api/chat/conversations/${conv._id}/messages?page=1&limit=50`);
+    if (data.success) {
+      setMessages(data.data.messages);
+      setHasMore(data.data.page < data.data.pages);
+    }
+    setLoadingMsgs(false);
+
+    // Mark unread to 0 in list
+    setConversations(prev => prev.map(c => c._id === conv._id ? { ...c, myUnread: 0 } : c));
+    setTotalUnread(prev => Math.max(0, prev - (conv.myUnread || 0)));
+
+    inputRef.current?.focus();
+  }, []);
+
   // ── Load all conversations on mount ─────────────────────────────────────────
   const loadConversations = useCallback(async () => {
     setLoadingConvs(true);
@@ -293,6 +338,31 @@ const ChatWindow = ({ applicationId = null, onClose = null, embeddedMode = false
   }, []);
 
   useEffect(() => { loadConversations(); }, []);
+
+// Automatically open conversation when OrganizerDashboard
+// passes a selected application
+useEffect(() => {
+    if (!selectedConversation) return;
+
+    if (!conversations.length) return;
+
+    const conversation = conversations.find(
+        conv =>
+            String(
+                typeof conv.applicationId === "object"
+                    ? conv.applicationId._id
+                    : conv.applicationId
+            ) === String(selectedConversation._id)
+    );
+
+    if (!conversation) return;
+
+    // Already opened
+    if (selectedConvId === conversation._id) return;
+
+    openConversation(conversation);
+
+}, [selectedConversation, conversations]);
 
   // ── If applicationId is passed, open that conversation immediately ───────────
   useEffect(() => {
@@ -314,41 +384,7 @@ const ChatWindow = ({ applicationId = null, onClose = null, embeddedMode = false
     open();
   }, [applicationId]);
 
-  // ── Open a conversation ──────────────────────────────────────────────────────
-  const openConversation = useCallback(async (conv) => {
-    // Leave previous room
-    if (selectedConvId && socketRef.current) {
-      socketRef.current.emit('conversation:leave', { conversationId: selectedConvId });
-      socketRef.current.emit('typing:stop', { conversationId: selectedConvId });
-    }
-
-    setSelectedConvId(conv._id);
-    setSelectedConv(conv);
-    setMessages([]);
-    setMsgPage(1);
-    setTypingUsers([]);
-    setShowConvList(false);
-
-    // Join new room
-    if (socketRef.current) {
-      socketRef.current.emit('conversation:join', { conversationId: conv._id });
-    }
-
-    // Load messages
-    setLoadingMsgs(true);
-    const data = await apiFetch(`/api/chat/conversations/${conv._id}/messages?page=1&limit=50`);
-    if (data.success) {
-      setMessages(data.data.messages);
-      setHasMore(data.data.page < data.data.pages);
-    }
-    setLoadingMsgs(false);
-
-    // Mark unread to 0 in list
-    setConversations(prev => prev.map(c => c._id === conv._id ? { ...c, myUnread: 0 } : c));
-    setTotalUnread(prev => Math.max(0, prev - (conv.myUnread || 0)));
-
-    inputRef.current?.focus();
-  }, [selectedConvId]);
+  
 
   // ── Load earlier messages ────────────────────────────────────────────────────
   const loadMoreMessages = async () => {
