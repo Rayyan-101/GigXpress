@@ -265,9 +265,9 @@ const Home = () => {
                   Start Earning Today
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="px-8 py-4 border border-white/10 hover:border-white/25 hover:bg-white/5 text-white rounded-2xl font-bold text-base flex items-center gap-2.5 transition-all">
+                {/* <button className="px-8 py-4 border border-white/10 hover:border-white/25 hover:bg-white/5 text-white rounded-2xl font-bold text-base flex items-center gap-2.5 transition-all">
                   <PlayCircle size={18} className="text-indigo-400" /> Watch Demo
-                </button>
+                </button> */}
               </div>
 
               {/* Stats row */}
