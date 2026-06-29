@@ -687,7 +687,7 @@ const AdminDashboard = () => {
 
               {/* Stats grid */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard label="Total Users"     value={dashStats?.stats?.totalUsers || 0}         icon={Users}    color="bg-indigo-500"   hint="Workers + Organizers" loading={loadingDash} />
+                <MetricCard label="Total Users"     value={dashStats?.stats?.totalUsers-2 || 0}         icon={Users}    color="bg-indigo-500"   hint="Workers + Organizers" loading={loadingDash} />
                 <MetricCard label="Total Volunteers"value={dashStats?.stats?.totalWorkers || 0}       icon={UserCheck} color="bg-blue-500"    hint="Registered workers"   loading={loadingDash} />
                 <MetricCard label="Organizers"      value={dashStats?.stats?.totalOrganizers || 0}    icon={UserCog}  color="bg-purple-500"   hint="Event organisers"     loading={loadingDash} />
                 <MetricCard label="KYC Pending"     value={dashStats?.stats?.pendingKyc || 0}         icon={Shield}   color="bg-amber-500"    hint="Awaiting review"      loading={loadingDash} />
@@ -1094,7 +1094,7 @@ const AdminDashboard = () => {
 
               {/* Summary cards from dashboard */}
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <MetricCard label="Total Users"       value={dashStats?.stats?.totalUsers || 0}         icon={Users}      color="bg-indigo-500"  loading={loadingDash} />
+                <MetricCard label="Total Users"       value={dashStats?.stats?.totalUsers-2 || 0}         icon={Users}      color="bg-indigo-500"  loading={loadingDash} />
                 <MetricCard label="Active Jobs"        value={dashStats?.stats?.activeJobs || 0}         icon={Briefcase}  color="bg-green-500"   loading={loadingDash} />
                 <MetricCard label="Applications"       value={dashStats?.stats?.totalApplications || 0} icon={CheckCircle}color="bg-blue-500"    loading={loadingDash} />
                 <MetricCard label="Pending KYC"        value={dashStats?.stats?.pendingKyc || 0}         icon={Shield}     color="bg-amber-500"   loading={loadingDash} />
